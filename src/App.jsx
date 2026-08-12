@@ -547,7 +547,7 @@ export default function App() {
       setShowForm(false);
       fetchAll();
     } catch (e) {
-      setError("Angebot konnte nicht gespeichert werden. Bitte nochmal versuchen.");
+      setError("Angebot konnte nicht gespeichert werden: " + (e.message || "unbekannter Fehler"));
     } finally { setSaving(false); }
   }
 
