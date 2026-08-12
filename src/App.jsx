@@ -414,11 +414,12 @@ export default function App() {
     if (!email.trim() || !password || !displayName.trim()) { setAuthError("Bitte alle Felder ausfüllen."); return; }
     setAuthBusy(true);
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email: email.trim(), password });
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { data: { display_name: displayName.trim() } },
+      });
       if (signUpError) { setAuthError(signUpError.message); setAuthBusy(false); return; }
-      if (data.user) {
-        await supabase.from("profiles").insert({ id: data.user.id, display_name: displayName.trim(), balance: 0 });
-      }
       if (!data.session) {
         setAuthInfo("Fast fertig! Bitte bestätige deine E-Mail-Adresse über den Link, den wir dir geschickt haben, und melde dich danach an.");
       }
