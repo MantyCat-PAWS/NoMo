@@ -701,17 +701,20 @@ export default function App() {
       <header style={styles.header}>
         <div style={styles.logo}>MantyCat</div>
         <div style={styles.headerRight}>
-          {session && profile ? (
+          {session ? (
             <span style={styles.whoami}>
               {isAdmin && <span style={styles.reportPill}>Meldungen {openReports.length > 0 ? `(${openReports.length})` : ""}</span>}
-              {incomingOffers.length > 0 && <span style={styles.tradePill}>Tauschanfragen ({incomingOffers.length})</span>}
-              <button style={styles.msgPillBtn} onClick={() => { setShowInbox((s) => !s); if (!showInbox) markInboxRead(); }}>
-                Nachrichten {unreadCount > 0 ? `(${unreadCount})` : ""}
-              </button>
-              {profile.avatar && <span style={{ fontSize: 16 }}>{profile.avatar}</span>}
-              <b>{profile.display_name}</b>
-              <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>
-              <button style={styles.logoutLink} onClick={() => setShowProfile((s) => !s)}>profil</button>
+              {profile && incomingOffers.length > 0 && <span style={styles.tradePill}>Tauschanfragen ({incomingOffers.length})</span>}
+              {profile && (
+                <button style={styles.msgPillBtn} onClick={() => { setShowInbox((s) => !s); if (!showInbox) markInboxRead(); }}>
+                  Nachrichten {unreadCount > 0 ? `(${unreadCount})` : ""}
+                </button>
+              )}
+              {profile?.avatar && <span style={{ fontSize: 16 }}>{profile.avatar}</span>}
+              <b>{profile ? profile.display_name : session.user.email}</b>
+              {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
+              {!profile && <span style={styles.authError}>Profil konnte nicht geladen werden</span>}
+              {profile && <button style={styles.logoutLink} onClick={() => setShowProfile((s) => !s)}>profil</button>}
               <button style={styles.logoutLink} onClick={handleLogout}>abmelden</button>
             </span>
           ) : (
