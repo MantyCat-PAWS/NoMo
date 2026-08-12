@@ -31,6 +31,12 @@ const CATS = [
   { id: "dienstleistung", label: "Dienstleistungen", physical: false },
   { id: "hobby", label: "Hobby zum Ausprobieren", physical: true },
 ];
+const REPORT_REASONS = [
+  "Rechtswidriger Inhalt",
+  "Falsche/irreführende Angaben",
+  "Beleidigend oder unangemessen",
+  "Sonstiges",
+];
 
 function euroToPaws(euro) {
   const n = Number(euro);
@@ -135,7 +141,30 @@ function MessageForm({ item, onSubmit, onCancel, submitting }) {
   );
 }
 
-function TicketCard({ item, isMine, canAfford, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting }) {
+function ReportForm({ item, onSubmit, onCancel, submitting }) {
+  const [reason, setReason] = useState(REPORT_REASONS[0]);
+  const [comment, setComment] = useState("");
+  return (
+    <div style={styles.tradeBox}>
+      <label style={styles.label}>
+        Grund der Meldung
+        <select className="mc-input" style={styles.input} value={reason} onChange={(e) => setReason(e.target.value)}>
+          {REPORT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </label>
+      <textarea className="mc-input" style={{ ...styles.input, marginTop: 8, minHeight: 50, resize: "vertical" }}
+        placeholder="Kurze Beschreibung (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button type="button" style={styles.smallBtnRust} disabled={submitting} onClick={() => onSubmit(item, reason, comment)}>
+          {submitting ? "wird gesendet…" : "Melden"}
+        </button>
+        <button type="button" style={styles.smallBtnGhostInk} onClick={onCancel}>Abbrechen</button>
+      </div>
+    </div>
+  );
+}
+
+function TicketCard({ item, isMine, canAfford, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting }) {
   const info = catInfo(item.category);
   const total = item.price + (item.shipping_paws || 0);
   const accent = item.owner_accent_color ? colorHex(item.owner_accent_color) : COLORS.ink;
@@ -147,6 +176,7 @@ function TicketCard({ item, isMine, canAfford, onDelete, onRequest, requesting, 
         )}
         <div style={styles.badgeRow}>
           <span style={styles.catBadge}>{info.label}</span>
+          {item.seller_type === "unternehmer" && <span style={styles.bizBadge}>Unternehmer:in</span>}
           {item.status === "vergeben" && <span style={styles.soldBadge}>VERGEBEN</span>}
         </div>
         <h3 style={styles.ticketTitle}>{item.title}</h3>
@@ -186,6 +216,14 @@ function TicketCard({ item, isMine, canAfford, onDelete, onRequest, requesting, 
         )}
         {!isMine && msgFormOpen && (
           <MessageForm item={item} onSubmit={onSubmitMessage} onCancel={() => onToggleMsgForm(item.id)} submitting={msgSubmitting} />
+        )}
+        {!isMine && (
+          <button style={styles.reportLink} onClick={() => onToggleReportForm(item.id)}>
+            {reportFormOpen ? "Meldung schließen" : "Angebot melden"}
+          </button>
+        )}
+        {!isMine && reportFormOpen && (
+          <ReportForm item={item} onSubmit={onSubmitReport} onCancel={() => onToggleReportForm(item.id)} submitting={reportSubmitting} />
         )}
         {showRating && <RatingWidget item={item} onSubmit={onRate} submitting={ratingSubmitting} />}
       </div>
@@ -265,7 +303,177 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
   );
 }
 
+const PLACEHOLDER_STYLE = { color: "#B5501F", fontStyle: "italic" };
+function Ph({ children }) {
+  return <span style={PLACEHOLDER_STYLE}>[{children}]</span>;
+}
+
+function LegalSection({ heading, children }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <h3 style={styles.legalH3}>{heading}</h3>
+      {children}
+    </div>
+  );
+}
+
+function ImpressumPage() {
+  return (
+    <div>
+      <p style={styles.legalP}>Angaben gemäß § 5 E-Commerce-Gesetz (ECG), § 14 Unternehmensgesetzbuch (UGB) und § 25 Mediengesetz (MedienG).</p>
+      <LegalSection heading="Diensteanbieter">
+        <p style={styles.legalP}>Name / Firma: <Ph>Vor- und Nachname bzw. Firmenwortlaut</Ph></p>
+        <p style={styles.legalP}>Anschrift: <Ph>Straße, Hausnummer, PLZ, Ort</Ph></p>
+        <p style={styles.legalP}>E-Mail: <Ph>kontakt@mantycat.at</Ph></p>
+        <p style={styles.legalP}>Telefon (optional): <Ph>Telefonnummer</Ph></p>
+      </LegalSection>
+      <LegalSection heading="Unternehmensgegenstand">
+        <p style={styles.legalP}>Betrieb einer Online-Tauschplattform (MantyCat), auf der Nutzer:innen Sachen, Dienstleistungen und Ausprobier-Angebote gegen die plattforminterne Verrechnungseinheit „Paws" oder im Rahmen von Direkttausch anbieten und anfordern können.</p>
+      </LegalSection>
+      <LegalSection heading="Gewerberechtliche Angaben">
+        <p style={styles.legalP}>Gewerbeberechtigung: <Ph>Bezeichnung der Gewerbeberechtigung</Ph></p>
+        <p style={styles.legalP}>Zuständige Behörde: <Ph>z. B. Bezirkshauptmannschaft / Magistrat</Ph></p>
+        <p style={styles.legalP}>Mitglied der: <Ph>Wirtschaftskammer, Fachgruppe</Ph></p>
+      </LegalSection>
+      <LegalSection heading="Firmenbuch (falls zutreffend)">
+        <p style={styles.legalP}>Firmenbuchnummer: <Ph>FN …</Ph></p>
+        <p style={styles.legalP}>Firmenbuchgericht: <Ph>Landesgericht …</Ph></p>
+      </LegalSection>
+      <LegalSection heading="Umsatzsteuer-Identifikationsnummer (falls vorhanden)">
+        <p style={styles.legalP}>UID-Nummer: <Ph>ATU…</Ph></p>
+      </LegalSection>
+      <LegalSection heading="Verantwortlich für den Inhalt gemäß § 25 MedienG">
+        <p style={styles.legalP}><Ph>Name der verantwortlichen Person, i. d. R. identisch mit oben</Ph></p>
+      </LegalSection>
+      <LegalSection heading="Streitbeilegung">
+        <p style={styles.legalP}>Wir sind zur Teilnahme an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle weder verpflichtet noch bereit.</p>
+      </LegalSection>
+    </div>
+  );
+}
+
+function AgbPage() {
+  return (
+    <div>
+      <LegalSection heading="1. Geltungsbereich und Vertragspartner">
+        <p style={styles.legalP}>Diese Nutzungsbedingungen regeln die Nutzung der Online-Plattform MantyCat („Plattform"), betrieben von <Ph>Name/Firma laut Impressum</Ph> („wir" bzw. „Betreiber:in"). Mit der Registrierung eines Kontos akzeptiert die nutzende Person („Nutzer:in") diese Bedingungen.</p>
+      </LegalSection>
+      <LegalSection heading="2. Leistungsbeschreibung – Vermittlerstellung">
+        <p style={styles.legalP}>Die Plattform ermöglicht es Nutzer:innen, Sachen, Dienstleistungen und Ausprobier-Angebote einzustellen und im Austausch gegen die plattforminterne Verrechnungseinheit „Paws" oder im Rahmen eines direkten 1:1-Tauschs von anderen Nutzer:innen anzufordern.</p>
+        <p style={styles.legalP}>Wir treten dabei ausschließlich als technische Vermittler:innen auf. Ein Vertrag über den Tausch bzw. die Erbringung einer Dienstleistung kommt ausschließlich zwischen den beteiligten Nutzer:innen zustande. Wir werden nicht Vertragspartei dieser Geschäfte und übernehmen keine Gewähr für Bestand, Qualität, Rechtmäßigkeit, Vollständigkeit oder Eignung der eingestellten Angebote.</p>
+      </LegalSection>
+      <LegalSection heading="3. Registrierung und Konto">
+        <ul style={styles.legalUl}>
+          <li>Die Registrierung erfordert eine gültige E-Mail-Adresse und ist ab 18 Jahren möglich.</li>
+          <li>Jede Person darf nur ein Konto führen. Die Zugangsdaten sind vertraulich zu behandeln.</li>
+          <li>Wir behalten uns vor, Konten bei begründetem Verdacht auf Missbrauch, wiederholten negativen Bewertungen oder Verstößen gegen diese Bedingungen zu sperren. Betroffene werden über den Grund der Sperrung informiert und können dazu Stellung nehmen.</li>
+        </ul>
+      </LegalSection>
+      <LegalSection heading="4. Kennzeichnungspflicht: Privatperson oder Unternehmer:in">
+        <p style={styles.legalP}>Beim Einstellen eines Angebots ist anzugeben, ob dieses als Privatperson oder im Rahmen einer unternehmerischen/gewerblichen Tätigkeit angeboten wird. Wer regelmäßig und mit Gewinnerzielungsabsicht Waren oder Dienstleistungen anbietet, gilt unabhängig von der Bezeichnung als Unternehmer:in im Sinne des Konsumentenschutzgesetzes (KSchG) und trägt die daraus resultierenden Pflichten (u. a. Impressumspflicht, Gewährleistung, ggf. Rücktrittsrecht der Konsument:innen nach dem Fern- und Auswärtsgeschäfte-Gesetz).</p>
+      </LegalSection>
+      <LegalSection heading='5. Die Verrechnungseinheit „Paws"'>
+        <ul style={styles.legalUl}>
+          <li>Paws sind eine rein plattforminterne Verrechnungseinheit ohne eigenständigen Geldwert.</li>
+          <li>Paws können ausschließlich durch das Einstellen eigener Angebote erworben und ausschließlich zum Anfordern fremder Angebote innerhalb der Plattform verwendet werden.</li>
+          <li>Ein Kauf, Verkauf, Umtausch in gesetzliche Zahlungsmittel oder eine Auszahlung von Paws ist nicht möglich und auch zwischen Nutzer:innen untereinander nicht gestattet.</li>
+          <li>Es besteht kein Anspruch auf einen bestimmten Gegenwert der Paws.</li>
+        </ul>
+      </LegalSection>
+      <LegalSection heading="6. Pflichten der Nutzer:innen">
+        <ul style={styles.legalUl}>
+          <li>Angebote müssen wahrheitsgemäß, vollständig und rechtmäßig sein.</li>
+          <li>Verboten ist das Einstellen von Angeboten, die gegen geltendes Recht verstoßen (u. a. gefälschte, gestohlene, gefährliche oder in Österreich verbotene Gegenstände, Dienstleistungen ohne erforderliche Berechtigung).</li>
+          <li>Die steuerliche Behandlung der eigenen Angebote (z. B. Umsatzsteuer bei Tauschumsätzen, Einkommensteuer bei wiederholter/gewerblicher Tätigkeit) liegt in der alleinigen Verantwortung der jeweiligen Nutzer:innen.</li>
+          <li>Nutzer:innen, die als Unternehmer:innen auftreten, sind für die Einhaltung ihrer eigenen Informations-, Gewährleistungs- und ggf. Rücktrittsrechtspflichten gegenüber Konsument:innen selbst verantwortlich.</li>
+        </ul>
+      </LegalSection>
+      <LegalSection heading="7. Melde-Mechanismus und Haftung als Vermittlungsdienst">
+        <p style={styles.legalP}>Nutzer:innen können jedes Angebot über die Funktion „Angebot melden" als rechtswidrig oder unangemessen kennzeichnen. Gemeldete Angebote werden geprüft; im Fall eines begründeten Verdachts auf Rechtswidrigkeit wird das Angebot entfernt und die einstellende Person kann gesperrt werden.</p>
+        <p style={styles.legalP}>Als Vermittlungsdienst im Sinne der Verordnung (EU) 2022/2065 (Digital Services Act) haften wir für von Nutzer:innen eingestellte Inhalte nur eingeschränkt, solange uns keine tatsächliche Kenntnis konkreter rechtswidriger Inhalte vorliegt bzw. wir bei Kenntnis unverzüglich tätig werden. Eine allgemeine Pflicht zur Überwachung sämtlicher Inhalte besteht nicht.</p>
+      </LegalSection>
+      <LegalSection heading="8. Bewertungssystem">
+        <p style={styles.legalP}>Nach Abschluss eines Tauschs können sich Nutzer:innen gegenseitig mit 1 bis 5 Sternen bewerten. Bewertungen mit 1 Stern werden automatisch zur Prüfung vorgelegt und können zur Sperrung des bewerteten Kontos führen. Bewertungen müssen wahrheitsgemäß und sachlich sein; offensichtlich missbräuchliche oder beleidigende Bewertungen können entfernt werden.</p>
+      </LegalSection>
+      <LegalSection heading="9. Haftungsbeschränkung">
+        <p style={styles.legalP}>Wir haften nicht für Schäden, die aus der Nutzung der Plattform oder aus zwischen Nutzer:innen abgeschlossenen Tauschgeschäften entstehen, soweit gesetzlich zulässig. Die Haftung für Vorsatz und grobe Fahrlässigkeit bleibt unberührt.</p>
+      </LegalSection>
+      <LegalSection heading="10. Änderungen dieser Bedingungen">
+        <p style={styles.legalP}>Wir behalten uns vor, diese Bedingungen bei Bedarf anzupassen. Über wesentliche Änderungen werden registrierte Nutzer:innen rechtzeitig informiert.</p>
+      </LegalSection>
+      <LegalSection heading="11. Anwendbares Recht, Gerichtsstand">
+        <p style={styles.legalP}>Es gilt österreichisches Recht unter Ausschluss der Verweisungsnormen. Für Verbraucher:innen gelten die zwingenden Bestimmungen des Wohnsitzstaates. Zwingende gesetzliche Gerichtsstände bleiben unberührt.</p>
+      </LegalSection>
+    </div>
+  );
+}
+
+function DatenschutzPage() {
+  return (
+    <div>
+      <p style={styles.legalP}>Diese Datenschutzerklärung informiert gemäß Art. 13 DSGVO über die Verarbeitung personenbezogener Daten im Rahmen der Nutzung von MantyCat.</p>
+      <LegalSection heading="1. Verantwortlicher">
+        <p style={styles.legalP}><Ph>Name/Firma, Anschrift, E-Mail laut Impressum</Ph></p>
+      </LegalSection>
+      <LegalSection heading="2. Welche Daten wir verarbeiten">
+        <ul style={styles.legalUl}>
+          <li>Registrierungsdaten: E-Mail-Adresse, Anzeigename, verschlüsseltes Passwort</li>
+          <li>Profildaten: Avatar, Akzentfarbe, Motto, Bio (freiwillige Angaben)</li>
+          <li>Angebotsdaten: Titel, Beschreibung, Kategorie, Preis, Standort, hochgeladene Bilder</li>
+          <li>Kommunikationsdaten: Nachrichten zwischen Nutzer:innen, Tauschanfragen, Bewertungen</li>
+          <li>Nutzungsdaten: Paws-Guthaben, Transaktionsverlauf</li>
+          <li>Technische Daten: Server-Logs im Rahmen des Hostings</li>
+        </ul>
+      </LegalSection>
+      <LegalSection heading="3. Zwecke und Rechtsgrundlagen">
+        <ul style={styles.legalUl}>
+          <li>Bereitstellung und Betrieb der Plattform (Art. 6 Abs. 1 lit. b DSGVO)</li>
+          <li>Kommunikation zwischen Nutzer:innen (Art. 6 Abs. 1 lit. b DSGVO)</li>
+          <li>Sicherheit, Missbrauchsprävention, Bearbeitung von Meldungen (Art. 6 Abs. 1 lit. f DSGVO)</li>
+          <li>Freiwillige Profilangaben (Art. 6 Abs. 1 lit. a DSGVO)</li>
+        </ul>
+      </LegalSection>
+      <LegalSection heading="4. Auftragsverarbeiter und Empfänger">
+        <p style={styles.legalP}>Wir nutzen für Datenbank, Authentifizierung, Dateispeicher und Hosting den Dienst Supabase Inc. Ein Auftragsverarbeitungsvertrag wird mit Supabase abgeschlossen. Serverstandort: <Ph>gewählte Supabase-Region, z. B. Frankfurt/EU</Ph>.</p>
+      </LegalSection>
+      <LegalSection heading="5. Speicherdauer">
+        <p style={styles.legalP}>Konto- und Angebotsdaten werden bis zur Löschung des Kontos durch die Nutzer:in bzw. bis zum Ablauf gesetzlicher Aufbewahrungsfristen gespeichert. Nachrichten werden gemeinsam mit dem zugehörigen Konto gelöscht.</p>
+      </LegalSection>
+      <LegalSection heading="6. Rechte der betroffenen Personen">
+        <p style={styles.legalP}>Nutzer:innen haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch gemäß Art. 15–21 DSGVO sowie das Recht auf Beschwerde bei der österreichischen Datenschutzbehörde (dsb.gv.at).</p>
+      </LegalSection>
+      <LegalSection heading="7. Kontakt in Datenschutzfragen">
+        <p style={styles.legalP}>E-Mail: <Ph>datenschutz@mantycat.at oder allgemeine Kontaktadresse</Ph></p>
+      </LegalSection>
+    </div>
+  );
+}
+
+function LegalPage({ page }) {
+  const titles = { impressum: "Impressum", agb: "AGB / Nutzungsbedingungen", datenschutz: "Datenschutzerklärung" };
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zu MantyCat</a>
+      <h1 style={styles.legalTitle}>{titles[page]}</h1>
+      <div style={styles.legalNotice}>
+        Entwurf, Stand August 2026. Textstellen in <Ph>eckigen Klammern</Ph> sind noch mit den echten Angaben zu befüllen; vor Veröffentlichung von einer Rechtsanwaltskanzlei bzw. Steuerberatung prüfen lassen.
+      </div>
+      {page === "impressum" && <ImpressumPage />}
+      {page === "agb" && <AgbPage />}
+      {page === "datenschutz" && <DatenschutzPage />}
+    </div>
+  );
+}
+
 export default function App() {
+  const [page, setPage] = useState(() => (typeof window !== "undefined" ? window.location.hash.replace("#", "") : ""));
+  useEffect(() => {
+    const onHashChange = () => setPage(window.location.hash.replace("#", ""));
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+  const isLegalPage = ["impressum", "agb", "datenschutz"].includes(page);
+
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profilesById, setProfilesById] = useState({});
@@ -281,6 +489,10 @@ export default function App() {
   const [listings, setListings] = useState([]);
   const [ratings, setRatings] = useState([]);
   const [tradeOffers, setTradeOffers] = useState([]);
+  const [listingReports, setListingReports] = useState([]);
+  const [reportFormItemId, setReportFormItemId] = useState(null);
+  const [reportSubmittingId, setReportSubmittingId] = useState(null);
+  const [reportActionId, setReportActionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [showInbox, setShowInbox] = useState(false);
   const [replyDrafts, setReplyDrafts] = useState({});
@@ -291,7 +503,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun" });
+  const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat" });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -312,11 +524,12 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [{ data: profs }, { data: lst }, { data: rts }, { data: offs }] = await Promise.all([
+      const [{ data: profs }, { data: lst }, { data: rts }, { data: offs }, { data: reps }] = await Promise.all([
         supabase.from("profiles").select("*"),
         supabase.from("listings").select("*").order("created_at", { ascending: false }),
         supabase.from("ratings").select("*"),
         supabase.from("trade_offers").select("*"),
+        supabase.from("listing_reports").select("*"),
       ]);
       const pMap = {};
       (profs || []).forEach((p) => { pMap[p.id] = p; });
@@ -324,6 +537,7 @@ export default function App() {
       setListings((lst || []).map((l) => enrichListing(l, pMap)));
       setRatings(rts || []);
       setTradeOffers(offs || []);
+      setListingReports(reps || []);
     } catch (e) {
       setError("Daten konnten nicht geladen werden.");
     } finally {
@@ -367,6 +581,7 @@ export default function App() {
 
   const isAdmin = session && ADMIN_EMAILS.includes(session.user.email);
   const openReports = useMemo(() => ratings.filter((r) => r.stars === 1 && !r.resolved), [ratings]);
+  const openContentReports = useMemo(() => listingReports.filter((r) => !r.resolved), [listingReports]);
 
   const myAvailableListings = useMemo(() => {
     if (!session) return [];
@@ -532,7 +747,7 @@ export default function App() {
       const { error: insErr } = await supabase.from("listings").insert({
         code, title: form.title.trim(), category: form.category, description: form.description.trim(),
         price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
-        owner_id: session.user.id, status: "verfuegbar", image_url: imageUrl, ...extra,
+        owner_id: session.user.id, status: "verfuegbar", image_url: imageUrl, seller_type: form.sellerType, ...extra,
       });
       if (insErr) throw insErr;
 
@@ -541,7 +756,7 @@ export default function App() {
       if (balErr) throw balErr;
       setProfile((p) => ({ ...p, balance: newBalance }));
 
-      setForm({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun" });
+      setForm({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat" });
       setImageFile(null);
       setImagePreview(null);
       setShowForm(false);
@@ -613,6 +828,49 @@ export default function App() {
       await supabase.from("ratings").update({ resolved: true }).eq("id", report.id);
       fetchAll();
     } catch (e) { setError("Meldung konnte nicht bearbeitet werden."); }
+  }
+
+  function toggleReportForm(itemId) {
+    setReportFormItemId((cur) => (cur === itemId ? null : itemId));
+  }
+
+  async function submitContentReport(item, reason, comment) {
+    if (!session) return;
+    setReportSubmittingId(item.id);
+    setError(null);
+    try {
+      const { error: insErr } = await supabase.from("listing_reports").insert({
+        item_id: item.id, item_title: item.title, reported_by: session.user.id, reason, comment: comment.trim(),
+      });
+      if (insErr) throw insErr;
+      setReportFormItemId(null);
+      fetchAll();
+    } catch (e) {
+      setError("Meldung konnte nicht gesendet werden: " + (e.message || "unbekannter Fehler"));
+    } finally { setReportSubmittingId(null); }
+  }
+
+  async function removeReportedListing(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      if (report.item_id) await supabase.from("listings").delete().eq("id", report.item_id);
+      await supabase.from("listing_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Angebot konnte nicht entfernt werden.");
+    } finally { setReportActionId(null); }
+  }
+
+  async function dismissContentReport(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      await supabase.from("listing_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Meldung konnte nicht bearbeitet werden.");
+    } finally { setReportActionId(null); }
   }
 
   function toggleTradeForm(id) { setTradeFormItemId((c) => (c === id ? null : id)); setMsgFormItemId(null); }
@@ -723,7 +981,7 @@ export default function App() {
         <div style={styles.headerRight}>
           {session ? (
             <span style={styles.whoami}>
-              {isAdmin && <span style={styles.reportPill}>Meldungen {openReports.length > 0 ? `(${openReports.length})` : ""}</span>}
+              {isAdmin && <span style={styles.reportPill}>Meldungen {(openReports.length + openContentReports.length) > 0 ? `(${openReports.length + openContentReports.length})` : ""}</span>}
               {profile && incomingOffers.length > 0 && <span style={styles.tradePill}>Tauschanfragen ({incomingOffers.length})</span>}
               {profile && (
                 <button style={styles.msgPillBtn} onClick={() => { setShowInbox((s) => !s); if (!showInbox) markInboxRead(); }}>
@@ -743,6 +1001,9 @@ export default function App() {
         </div>
       </header>
 
+      {isLegalPage ? (
+        <LegalPage page={page} />
+      ) : (
       <section style={styles.hero}>
         <div style={styles.heroEyebrow}>AUS TRAUN, FÜR ALLE</div>
         <h1 className="mc-hero-title" style={styles.heroTitle}>Tauschen mit<br />{CURRENCY}.</h1>
@@ -816,6 +1077,24 @@ export default function App() {
         </section>
       )}
 
+      {isAdmin && openContentReports.length > 0 && (
+        <section style={styles.adminBox}>
+          <h2 style={styles.adminTitle}>Gemeldete Angebote</h2>
+          {openContentReports.map((r) => (
+            <div key={r.id} style={styles.reportRow}>
+              <div>
+                <b>{r.item_title || "(Angebot bereits gelöscht)"}</b> gemeldet von <b>{profilesById[r.reported_by]?.display_name}</b>, Grund: <b>{r.reason}</b>
+                {r.comment ? <>: "{r.comment}"</> : ""}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button style={styles.smallBtnRust} disabled={reportActionId === r.id} onClick={() => removeReportedListing(r)}>Angebot entfernen</button>
+                <button style={styles.smallBtnGhost} disabled={reportActionId === r.id} onClick={() => dismissContentReport(r)}>Ignorieren</button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       {session && (incomingOffers.length > 0 || outgoingOffers.length > 0) && (
         <section style={styles.tradeSection}>
           <h2 style={styles.tradeSectionTitle}>Tauschanfragen</h2>
@@ -877,6 +1156,18 @@ export default function App() {
             </div>
             {form.category === "hobby" && (
               <div style={styles.hobbyHint}>Diese Kategorie ist für Dinge gedacht, die man nur eine Weile ausprobieren möchte, bevor man sie kauft, ideal zum Reinschnuppern in neue Hobbys.</div>
+            )}
+            <label style={styles.label}>
+              Ich biete das an als
+              <select className="mc-input" style={styles.input} value={form.sellerType} onChange={(e) => setForm({ ...form, sellerType: e.target.value })}>
+                <option value="privat">Privatperson</option>
+                <option value="unternehmer">Unternehmer:in / gewerblich</option>
+              </select>
+            </label>
+            {form.sellerType === "unternehmer" && (
+              <div style={styles.hobbyHint}>
+                Als Unternehmer:in bist du selbst für Impressumspflicht, Gewährleistung und ggf. Rücktrittsrecht gegenüber Konsument:innen verantwortlich (siehe AGB).
+              </div>
             )}
             <label style={styles.label}>
               Beschreibung
@@ -965,6 +1256,10 @@ export default function App() {
                     onToggleMsgForm={toggleMsgForm}
                     onSubmitMessage={submitMessage}
                     msgSubmitting={msgSubmittingId === item.id}
+                    reportFormOpen={reportFormItemId === item.id}
+                    onToggleReportForm={toggleReportForm}
+                    onSubmitReport={submitContentReport}
+                    reportSubmitting={reportSubmittingId === item.id}
                   />
                 </div>
               );
@@ -972,8 +1267,16 @@ export default function App() {
           </div>
         )}
       </section>
+      )}
 
-      <footer style={styles.footer}>MantyCat, ein Tauschbrett aus Traun. {CURRENCY} sind eine reine Verrechnungswährung ohne echten Geldwert.</footer>
+      <footer style={styles.footer}>
+        <div>MantyCat, ein Tauschbrett aus Traun. {CURRENCY} sind eine reine Verrechnungswährung ohne echten Geldwert.</div>
+        <div style={styles.footerLinks}>
+          <a href="#impressum" style={styles.footerLink}>Impressum</a>
+          <a href="#agb" style={styles.footerLink}>AGB</a>
+          <a href="#datenschutz" style={styles.footerLink}>Datenschutz</a>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -1056,6 +1359,8 @@ const styles = {
   badgeRow: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
   catBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, padding: "3px 8px", borderRadius: 3 },
   soldBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.rust, padding: "3px 8px", borderRadius: 3 },
+  bizBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.moss, padding: "3px 8px", borderRadius: 3 },
+  reportLink: { marginTop: 10, alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.mossDark, textDecoration: "underline", cursor: "pointer" },
   ticketTitle: { fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 19, margin: "0 0 8px", lineHeight: 1.2 },
   ticketDesc: { fontSize: 13.5, lineHeight: 1.5, margin: "0 0 10px", color: "#3A3A34" },
   metaLine: { fontSize: 12, color: COLORS.mossDark, marginBottom: 8, fontFamily: "'IBM Plex Mono', monospace" },
@@ -1080,4 +1385,14 @@ const styles = {
   ticketBy: { fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace", writingMode: "vertical-rl", transform: "rotate(180deg)", color: COLORS.mossDark },
   ticketLoc: { fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: COLORS.rust, writingMode: "vertical-rl", transform: "rotate(180deg)" },
   footer: { textAlign: "center", padding: "28px 20px 40px", fontSize: 12.5, color: COLORS.mossDark, fontFamily: "'IBM Plex Mono', monospace" },
+  footerLinks: { display: "flex", gap: 16, justifyContent: "center", marginTop: 10 },
+  footerLink: { color: COLORS.mossDark, textDecoration: "underline" },
+
+  legalPage: { maxWidth: 760, margin: "0 auto", padding: "48px 28px 60px" },
+  legalBack: { display: "inline-block", marginBottom: 20, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: COLORS.moss, textDecoration: "underline" },
+  legalTitle: { fontFamily: "'Fraunces', serif", fontSize: 34, fontWeight: 600, margin: "0 0 16px" },
+  legalNotice: { fontSize: 12.5, color: COLORS.mossDark, background: "#fff", border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "12px 14px", marginBottom: 28, lineHeight: 1.5 },
+  legalH3: { fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600, margin: "0 0 8px", color: COLORS.moss },
+  legalP: { fontSize: 14, lineHeight: 1.6, margin: "0 0 10px", color: "#3A3A34" },
+  legalUl: { fontSize: 14, lineHeight: 1.6, color: "#3A3A34", paddingLeft: 20, margin: 0 },
 };
