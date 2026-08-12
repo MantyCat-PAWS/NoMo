@@ -142,6 +142,9 @@ function TicketCard({ item, isMine, canAfford, onDelete, onRequest, requesting, 
   return (
     <div style={{ ...styles.ticket, opacity: item.status === "vergeben" ? 0.55 : 1 }}>
       <div style={styles.ticketMain}>
+        {item.image_url && (
+          <img src={item.image_url} alt={item.title} style={styles.ticketImage} />
+        )}
         <div style={styles.badgeRow}>
           <span style={styles.catBadge}>{info.label}</span>
           {item.status === "vergeben" && <span style={styles.soldBadge}>VERGEBEN</span>}
@@ -289,6 +292,8 @@ export default function App() {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun" });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [requestingId, setRequestingId] = useState(null);
   const [ratingSubmittingId, setRatingSubmittingId] = useState(null);
@@ -510,11 +515,24 @@ export default function App() {
     setSaving(true);
     setError(null);
     try {
+      let imageUrl = null;
+      if (imageFile) {
+        const path = `${session.user.id}/${Date.now()}-${imageFile.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
+        const { error: uploadErr } = await supabase.storage.from("listing-images").upload(path, imageFile);
+        if (uploadErr) {
+          setError("Bild konnte nicht hochgeladen werden: " + uploadErr.message);
+          setSaving(false);
+          return;
+        }
+        const { data: urlData } = supabase.storage.from("listing-images").getPublicUrl(path);
+        imageUrl = urlData.publicUrl;
+      }
+
       const code = String(listings.length + 1).padStart(4, "0");
       const { error: insErr } = await supabase.from("listings").insert({
         code, title: form.title.trim(), category: form.category, description: form.description.trim(),
         price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
-        owner_id: session.user.id, status: "verfuegbar", ...extra,
+        owner_id: session.user.id, status: "verfuegbar", image_url: imageUrl, ...extra,
       });
       if (insErr) throw insErr;
 
@@ -524,6 +542,8 @@ export default function App() {
       setProfile((p) => ({ ...p, balance: newBalance }));
 
       setForm({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun" });
+      setImageFile(null);
+      setImagePreview(null);
       setShowForm(false);
       fetchAll();
     } catch (e) {
@@ -891,6 +911,23 @@ export default function App() {
               {categoryAverage !== null && <> Ähnliche Angebote in "{catInfo(form.category).label}" liegen im Schnitt bei {categoryAverage} {categoryAverage === 1 ? CURRENCY_SINGULAR : CURRENCY}.</>}
             </div>
             <label style={styles.label}>
+              Foto (optional)
+              <input
+                type="file"
+                accept="image/*"
+                className="mc-input"
+                style={styles.input}
+                onChange={(e) => {
+                  const file = e.target.files[0] || null;
+                  setImageFile(file);
+                  setImagePreview(file ? URL.createObjectURL(file) : null);
+                }}
+              />
+            </label>
+            {imagePreview && (
+              <img src={imagePreview} alt="Vorschau" style={styles.imagePreview} />
+            )}
+            <label style={styles.label}>
               Standort
               <input className="mc-input" style={styles.input} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </label>
@@ -1008,12 +1045,14 @@ const styles = {
   label: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 500, flex: 1, minWidth: 180 },
   input: { fontFamily: "'Inter', sans-serif", fontSize: 14, padding: "10px 12px", border: `1.5px solid ${COLORS.stone}`, borderRadius: 5, background: COLORS.paper },
   hobbyHint: { fontSize: 12.5, background: COLORS.paper, border: `1px dashed ${COLORS.moss}`, borderRadius: 6, padding: "10px 12px", color: COLORS.mossDark },
+  imagePreview: { width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 6, border: `1.5px solid ${COLORS.stone}` },
   valueHint: { fontSize: 12.5, color: COLORS.mossDark, lineHeight: 1.5, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "10px 12px" },
   primaryBtn: { fontFamily: "'IBM Plex Mono', monospace", fontWeight: 500, fontSize: 14, background: COLORS.lime, color: COLORS.ink, border: `2px solid ${COLORS.ink}`, borderRadius: 5, padding: "10px 18px", cursor: "pointer", alignSelf: "flex-start" },
   smallBtn: { marginTop: 8, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 5, padding: "7px 14px", cursor: "pointer" },
   empty: { padding: "40px 20px", textAlign: "center", border: `1.5px dashed ${COLORS.stone}`, borderRadius: 8, color: COLORS.mossDark, fontFamily: "'IBM Plex Mono', monospace", fontSize: 14 },
   ticket: { display: "flex", background: "#fff", border: `2px solid ${COLORS.ink}`, borderRadius: 8, overflow: "hidden", boxShadow: `0 6px 0 ${COLORS.ink}`, height: "100%" },
   ticketMain: { flex: 1, padding: "16px 16px 16px 18px", minWidth: 0, display: "flex", flexDirection: "column" },
+  ticketImage: { width: "100%", height: 140, objectFit: "cover", borderRadius: 6, marginBottom: 10 },
   badgeRow: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
   catBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, padding: "3px 8px", borderRadius: 3 },
   soldBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.rust, padding: "3px 8px", borderRadius: 3 },
