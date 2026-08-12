@@ -1004,6 +1004,7 @@ export default function App() {
       {isLegalPage ? (
         <LegalPage page={page} />
       ) : (
+      <>
       <section style={styles.hero}>
         <div style={styles.heroEyebrow}>AUS TRAUN, FÜR ALLE</div>
         <h1 className="mc-hero-title" style={styles.heroTitle}>Tauschen mit<br />{CURRENCY}.</h1>
@@ -1267,6 +1268,7 @@ export default function App() {
           </div>
         )}
       </section>
+      </>
       )}
 
       <footer style={styles.footer}>
