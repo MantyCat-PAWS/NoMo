@@ -6,7 +6,7 @@ const CURRENCY_SINGULAR = "Paw";
 const EURO_TO_PAW = 10;
 // Trag hier die E-Mail-Adresse ein, mit der ihr euch als Betreiber:in registriert,
 // dann seht ihr das Meldungen-Panel für 1-Stern-Bewertungen.
-const ADMIN_EMAILS = ["admin@mantycat.at"];
+const ADMIN_EMAILS = ["regina.paulik@gmx.at"];
 
 const AVATARS = ["🐾", "🐱", "🐈‍⬛", "🦁", "🐯", "🐆", "🦥", "🐣"];
 const PROFILE_COLORS = [
