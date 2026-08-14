@@ -183,6 +183,11 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
         )}
         <div style={styles.badgeRow}>
           <span style={styles.catBadge}>{info.label}</span>
+          {info.physical && (
+            <span style={item.ships === false ? styles.pickupBadge : styles.shipBadge}>
+              {item.ships === false ? "Nur Abholung" : "Versand möglich"}
+            </span>
+          )}
           {isSuche && <span style={styles.searchBadge}>GESUCHT</span>}
           {item.seller_type === "unternehmer" && <span style={styles.bizBadge}>Unternehmer:in</span>}
           {item.status === "vergeben" && <span style={styles.soldBadge}>VERGEBEN</span>}
@@ -340,12 +345,11 @@ function MessagesPage({ conversations, userId, replyDrafts, onDraftChange, onRep
   );
 }
 
-function CompletedListingsPage({ listings, onDelete, profilesById }) {
+function CompletedListingsSection({ listings, onDelete, profilesById }) {
   return (
-    <div style={styles.legalPage}>
-      <a href="#" style={styles.legalBack}>← Zurück zu MantyCat</a>
-      <h1 style={styles.legalTitle}>Abgeschlossene Zettel</h1>
-      <p style={styles.legalP}>Angebote, die vergeben wurden. Nur du siehst diese Seite, sie tauchen am Schwarzen Brett nicht mehr auf.</p>
+    <div>
+      <h2 style={styles.profileSectionTitle}>Abgeschlossene Zettel</h2>
+      <p style={styles.legalP}>Angebote, die vergeben wurden. Nur du siehst diese, sie tauchen am Schwarzen Brett nicht mehr auf.</p>
       {listings.length === 0 ? (
         <div style={styles.inboxEmpty}>Noch nichts Abgeschlossenes hier.</div>
       ) : (
@@ -370,6 +374,21 @@ function CompletedListingsPage({ listings, onDelete, profilesById }) {
     </div>
   );
 }
+
+function ProfilePage({ profile, onSaveProfile, profileSaving, completedListings, onDeleteListing, profilesById }) {
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zu MantyCat</a>
+      <h1 style={styles.legalTitle}>Mein Profil</h1>
+      <div style={{ marginBottom: 36 }}>
+        <h2 style={styles.profileSectionTitle}>Profil bearbeiten</h2>
+        <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
+      </div>
+      <CompletedListingsSection listings={completedListings} onDelete={onDeleteListing} profilesById={profilesById} />
+    </div>
+  );
+}
+
 
 const PLACEHOLDER_STYLE = { color: "#B5501F", fontStyle: "italic" };
 function Ph({ children }) {
@@ -549,7 +568,6 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profilesById, setProfilesById] = useState({});
-  const [showProfile, setShowProfile] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
 
   const [authMode, setAuthMode] = useState("login");
@@ -573,11 +591,12 @@ export default function App() {
 
   const [catFilter, setCatFilter] = useState("alle");
   const [typeFilter, setTypeFilter] = useState("biete");
+  const [shipFilter, setShipFilter] = useState("alle");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "" });
+  const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -792,8 +811,7 @@ export default function App() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    setShowProfile(false);
-    if (["nachrichten"].includes(page)) window.location.hash = "";
+    if (["nachrichten", "profil"].includes(page)) window.location.hash = "";
   }
 
   async function saveProfile(newProfile) {
@@ -804,7 +822,6 @@ export default function App() {
       const { error: updErr } = await supabase.from("profiles").update(newProfile).eq("id", session.user.id);
       if (updErr) throw updErr;
       setProfile((p) => ({ ...p, ...newProfile }));
-      setShowProfile(false);
       fetchAll();
     } catch (e) {
       setError("Profil konnte nicht gespeichert werden.");
@@ -852,7 +869,7 @@ export default function App() {
         price = euroToPaws(euro);
         extra = { price_euro: euro };
       }
-      shippingPaws = catInfo(form.category).physical ? euroToPaws(form.shippingEuro || 0) : 0;
+      shippingPaws = catInfo(form.category).physical && form.ships ? euroToPaws(form.shippingEuro || 0) : 0;
     } else {
       const maxOffer = Number(form.maxOfferPaws);
       if (maxOffer > 0) extra = { max_offer_paws: Math.round(maxOffer) };
@@ -879,7 +896,7 @@ export default function App() {
         code, title: form.title.trim(), category: form.category, description: form.description.trim(),
         price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
         owner_id: session.user.id, status: "verfuegbar", image_url: imageUrl, seller_type: form.sellerType,
-        listing_type: form.listingType, ...extra,
+        listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
       });
       if (insErr) throw insErr;
 
@@ -890,7 +907,7 @@ export default function App() {
         setProfile((p) => ({ ...p, balance: newBalance }));
       }
 
-      setForm({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "" });
+      setForm({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
       setImageFile(null);
       setImagePreview(null);
       setShowForm(false);
@@ -1133,9 +1150,14 @@ export default function App() {
     if (l.status === "vergeben") return false;
     const matchesType = (l.listing_type || "biete") === typeFilter;
     const matchesCat = catFilter === "alle" || l.category === catFilter;
+    const isPhysical = catInfo(l.category).physical;
+    const matchesShip =
+      shipFilter === "alle" || !isPhysical ||
+      (shipFilter === "versand" && l.ships !== false) ||
+      (shipFilter === "abholung" && l.ships === false);
     const q = query.trim().toLowerCase();
     const matchesQuery = !q || l.title.toLowerCase().includes(q) || l.description.toLowerCase().includes(q);
-    return matchesType && matchesCat && matchesQuery;
+    return matchesType && matchesCat && matchesShip && matchesQuery;
   });
 
   const myCompletedListings = useMemo(() => {
@@ -1180,8 +1202,7 @@ export default function App() {
               <b>{profile ? profile.display_name : session.user.email}</b>
               {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
               {!profile && <span style={styles.authError}>Profil konnte nicht geladen werden</span>}
-              {profile && <button style={styles.logoutLink} onClick={() => setShowProfile((s) => !s)}>profil</button>}
-              {profile && <button style={styles.logoutLink} onClick={() => { window.location.hash = "abgeschlossen"; }}>abgeschlossene zettel</button>}
+              {profile && <button style={styles.logoutLink} onClick={() => { window.location.hash = "profil"; }}>profil</button>}
               <button style={styles.logoutLink} onClick={handleLogout}>abmelden</button>
             </span>
           ) : (
@@ -1192,8 +1213,8 @@ export default function App() {
 
       {page === "nachrichten" && session ? (
         <MessagesPage conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey} />
-      ) : page === "abgeschlossen" && session ? (
-        <CompletedListingsPage listings={myCompletedListings} onDelete={deleteListing} profilesById={profilesById} />
+      ) : page === "profil" && session && profile ? (
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} />
       ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
@@ -1244,13 +1265,6 @@ export default function App() {
               {authBusy ? "Einen Moment…" : authMode === "login" ? "Anmelden" : "Konto anlegen"}
             </button>
           </form>
-        </section>
-      )}
-
-      {session && showProfile && profile && (
-        <section style={styles.profileBox}>
-          <h2 style={styles.profileTitle}>Dein Profil</h2>
-          <ProfileEditor profile={profile} onSave={saveProfile} saving={profileSaving} />
         </section>
       )}
 
@@ -1398,6 +1412,13 @@ export default function App() {
           ))}
         </div>
 
+        <div style={styles.filterLabel}>Versand</div>
+        <div style={styles.tabs}>
+          {[{ id: "alle", label: "Alle" }, { id: "versand", label: "Versand möglich" }, { id: "abholung", label: "Nur Abholung" }].map((f) => (
+            <button key={f.id} className="mc-tab" onClick={() => setShipFilter(f.id)} style={{ ...styles.tab, ...(shipFilter === f.id ? styles.tabActive : {}) }}>{f.label}</button>
+          ))}
+        </div>
+
         {showForm && session && (
           <form onSubmit={submitListing} style={styles.form}>
             <div style={styles.typeToggleRow}>
@@ -1457,10 +1478,20 @@ export default function App() {
                   </label>
                 )}
                 {catInfo(form.category).physical && (
-                  <label style={styles.label}>
-                    Versandkosten in Euro
-                    <input className="mc-input" style={styles.input} type="number" min="0" value={form.shippingEuro} onChange={(e) => setForm({ ...form, shippingEuro: e.target.value })} placeholder="z. B. 5, oder leer bei Selbstabholung" />
-                  </label>
+                  <>
+                    <div style={styles.typeToggleRow}>
+                      <button type="button" style={{ ...styles.typeToggleBtn, ...(form.ships ? styles.typeToggleBtnActive : {}) }}
+                        onClick={() => setForm({ ...form, ships: true })}>Versand möglich</button>
+                      <button type="button" style={{ ...styles.typeToggleBtn, ...(!form.ships ? styles.typeToggleBtnActive : {}) }}
+                        onClick={() => setForm({ ...form, ships: false })}>Nur Abholung</button>
+                    </div>
+                    {form.ships && (
+                      <label style={styles.label}>
+                        Versandkosten in Euro
+                        <input className="mc-input" style={styles.input} type="number" min="0" value={form.shippingEuro} onChange={(e) => setForm({ ...form, shippingEuro: e.target.value })} placeholder="z. B. 5, oder leer wenn kostenlos" />
+                      </label>
+                    )}
+                  </>
                 )}
                 <div style={styles.valueHint}>
                   Faustregel: 1 {CURRENCY_SINGULAR} = {EURO_TO_PAW} €.
@@ -1584,6 +1615,7 @@ const styles = {
   authInfo: { fontSize: 13, color: COLORS.mossDark },
   profileBox: { maxWidth: 480, margin: "-28px auto 0", background: "#fff", border: `2px solid ${COLORS.ink}`, borderRadius: 6, padding: "18px 20px 20px", boxShadow: `0 6px 0 ${COLORS.ink}`, position: "relative", zIndex: 2 },
   profileTitle: { fontFamily: "'Fraunces', serif", fontSize: 20, margin: "0 0 12px" },
+  profileSectionTitle: { fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, margin: "0 0 12px" },
   profileForm: { display: "flex", flexDirection: "column", gap: 12 },
   avatarRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   avatarBtn: { fontSize: 20, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer" },
@@ -1658,6 +1690,8 @@ const styles = {
   adLink: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: COLORS.moss, textDecoration: "underline" },
   soldBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.rust, padding: "3px 8px", borderRadius: 3 },
   bizBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.moss, padding: "3px 8px", borderRadius: 3 },
+  shipBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.moss}`, padding: "3px 8px", borderRadius: 3 },
+  pickupBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, padding: "3px 8px", borderRadius: 3 },
   reportLink: { marginTop: 10, alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.mossDark, textDecoration: "underline", cursor: "pointer" },
   ticketTitle: { fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 19, margin: "0 0 8px", lineHeight: 1.2 },
   ticketDesc: { fontSize: 13.5, lineHeight: 1.5, margin: "0 0 10px", color: "#3A3A34" },
