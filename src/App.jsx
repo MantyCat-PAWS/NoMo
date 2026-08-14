@@ -345,6 +345,33 @@ function MessagesPage({ conversations, userId, replyDrafts, onDraftChange, onRep
   );
 }
 
+function ActiveListingsSection({ listings, onDelete }) {
+  return (
+    <div style={{ marginBottom: 36 }}>
+      <h2 style={styles.profileSectionTitle}>Aktive Zettel</h2>
+      <p style={styles.legalP}>Deine Angebote und Gesuche, die gerade am Schwarzen Brett hängen.</p>
+      {listings.length === 0 ? (
+        <div style={styles.inboxEmpty}>Noch nichts Aktives hier.</div>
+      ) : (
+        <div style={styles.completedList}>
+          {listings.map((l) => (
+            <div key={l.id} style={styles.completedRow}>
+              {l.image_url && <img src={l.image_url} alt={l.title} style={styles.completedImg} />}
+              <div style={{ flex: 1 }}>
+                <div style={styles.completedTitle}>{l.title}</div>
+                <div style={styles.completedMeta}>
+                  {l.listing_type === "suche" ? "Gesuch" : <>{l.price} {l.price === 1 ? CURRENCY_SINGULAR : CURRENCY}</>}
+                </div>
+              </div>
+              <button style={styles.smallBtnGhostInk} onClick={() => onDelete(l.id)}>Löschen</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CompletedListingsSection({ listings, onDelete, profilesById }) {
   return (
     <div>
@@ -375,7 +402,7 @@ function CompletedListingsSection({ listings, onDelete, profilesById }) {
   );
 }
 
-function ProfilePage({ profile, onSaveProfile, profileSaving, completedListings, onDeleteListing, profilesById }) {
+function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zu MantyCat</a>
@@ -384,6 +411,7 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, completedListings,
         <h2 style={styles.profileSectionTitle}>Profil bearbeiten</h2>
         <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
       </div>
+      <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} />
       <CompletedListingsSection listings={completedListings} onDelete={onDeleteListing} profilesById={profilesById} />
     </div>
   );
@@ -1205,7 +1233,7 @@ export default function App() {
       {page === "nachrichten" && session ? (
         <MessagesPage conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey} />
       ) : page === "profil" && session && profile ? (
-        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} />
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} />
       ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
