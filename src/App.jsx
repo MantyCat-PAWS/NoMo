@@ -387,10 +387,10 @@ function AgbPage() {
   return (
     <div>
       <LegalSection heading="1. Geltungsbereich und Vertragspartner">
-        <p style={styles.legalP}>Diese Nutzungsbedingungen regeln die Nutzung der Online-Plattform MantyCat („Plattform"), betrieben von <Ph>Name/Firma laut Impressum</Ph> („wir" bzw. „Betreiber:in"). Mit der Registrierung eines Kontos akzeptiert die nutzende Person („Nutzer:in") diese Bedingungen.</p>
+        <p style={styles.legalP}>Diese Nutzungsbedingungen regeln die Nutzung der Online-Plattform MantyCat („Plattform"), betrieben von der Centerpiece OG, Bahnhofstraße 10, 4050 Traun („wir" bzw. „Betreiber:in"). Mit der Registrierung eines Kontos akzeptiert die nutzende Person („Nutzer:in") diese Bedingungen.</p>
       </LegalSection>
       <LegalSection heading="2. Leistungsbeschreibung – Vermittlerstellung">
-        <p style={styles.legalP}>Die Plattform ermöglicht es Nutzer:innen, Sachen, Dienstleistungen und Ausprobier-Angebote einzustellen und im Austausch gegen die plattforminterne Verrechnungseinheit „Paws" oder im Rahmen eines direkten 1:1-Tauschs von anderen Nutzer:innen anzufordern.</p>
+        <p style={styles.legalP}>Die Plattform ermöglicht es Nutzer:innen, Sachen und Dienstleistungen anzubieten oder als Gesuch zu suchen, und diese im Austausch gegen die plattforminterne Verrechnungseinheit „Paws" oder im Rahmen eines direkten 1:1-Tauschs von anderen Nutzer:innen anzufordern.</p>
         <p style={styles.legalP}>Wir treten dabei ausschließlich als technische Vermittler:innen auf. Ein Vertrag über den Tausch bzw. die Erbringung einer Dienstleistung kommt ausschließlich zwischen den beteiligten Nutzer:innen zustande. Wir werden nicht Vertragspartei dieser Geschäfte und übernehmen keine Gewähr für Bestand, Qualität, Rechtmäßigkeit, Vollständigkeit oder Eignung der eingestellten Angebote.</p>
       </LegalSection>
       <LegalSection heading="3. Registrierung und Konto">
@@ -444,7 +444,7 @@ function DatenschutzPage() {
     <div>
       <p style={styles.legalP}>Diese Datenschutzerklärung informiert gemäß Art. 13 DSGVO über die Verarbeitung personenbezogener Daten im Rahmen der Nutzung von MantyCat.</p>
       <LegalSection heading="1. Verantwortlicher">
-        <p style={styles.legalP}><Ph>Name/Firma, Anschrift, E-Mail laut Impressum</Ph></p>
+        <p style={styles.legalP}>Centerpiece OG, Bahnhofstraße 10, 4050 Traun, E-Mail: <Ph>eigene Kontaktadresse für MantyCat, z. B. kontakt@mantycat.at, oder kontakt@centerpiece.at verwenden</Ph></p>
       </LegalSection>
       <LegalSection heading="2. Welche Daten wir verarbeiten">
         <ul style={styles.legalUl}>
@@ -465,7 +465,7 @@ function DatenschutzPage() {
         </ul>
       </LegalSection>
       <LegalSection heading="4. Auftragsverarbeiter und Empfänger">
-        <p style={styles.legalP}>Wir nutzen für Datenbank, Authentifizierung, Dateispeicher und Hosting den Dienst Supabase Inc. Ein Auftragsverarbeitungsvertrag wird mit Supabase abgeschlossen. Serverstandort: <Ph>gewählte Supabase-Region, z. B. Frankfurt/EU</Ph>.</p>
+        <p style={styles.legalP}>Wir nutzen für Datenbank, Authentifizierung, Dateispeicher und Hosting den Dienst Supabase Inc. Ein Auftragsverarbeitungsvertrag wird mit Supabase abgeschlossen. Serverstandort: <Ph>bitte die bei der Projekterstellung gewählte Supabase-Region eintragen, unter Project Settings → General ersichtlich</Ph>.</p>
       </LegalSection>
       <LegalSection heading="5. Speicherdauer">
         <p style={styles.legalP}>Konto- und Angebotsdaten werden bis zur Löschung des Kontos durch die Nutzer:in bzw. bis zum Ablauf gesetzlicher Aufbewahrungsfristen gespeichert. Nachrichten werden gemeinsam mit dem zugehörigen Konto gelöscht.</p>
@@ -474,7 +474,7 @@ function DatenschutzPage() {
         <p style={styles.legalP}>Nutzer:innen haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch gemäß Art. 15–21 DSGVO sowie das Recht auf Beschwerde bei der österreichischen Datenschutzbehörde (dsb.gv.at).</p>
       </LegalSection>
       <LegalSection heading="7. Kontakt in Datenschutzfragen">
-        <p style={styles.legalP}>E-Mail: <Ph>datenschutz@mantycat.at oder allgemeine Kontaktadresse</Ph></p>
+        <p style={styles.legalP}>E-Mail: <Ph>eigene Kontaktadresse für MantyCat, z. B. kontakt@mantycat.at, oder kontakt@centerpiece.at verwenden</Ph></p>
       </LegalSection>
     </div>
   );
