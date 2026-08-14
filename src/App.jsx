@@ -335,21 +335,88 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
   );
 }
 
-function MessagesPage({ conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey }) {
+function MessagesPage({
+  conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey,
+  incomingOffers, outgoingOffers, onAcceptOffer, onDeclineOffer, tradeActionId,
+  incomingRequests, outgoingRequests, onAcceptRequest, onDeclineRequest, requestActionId,
+}) {
+  const hasOffers = incomingOffers.length > 0 || outgoingOffers.length > 0;
+  const hasRequests = incomingRequests.length > 0 || outgoingRequests.length > 0;
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zu MantyCat</a>
       <h1 style={styles.legalTitle}>Nachrichten</h1>
+
+      {hasRequests && (
+        <div style={{ marginBottom: 32 }}>
+          <h2 style={styles.profileSectionTitle}>Anfragen</h2>
+          {incomingRequests.length > 0 && (
+            <>
+              <div style={styles.tradeSubhead}>An dich</div>
+              {incomingRequests.map((r) => (
+                <div key={r.id} style={styles.tradeRow}>
+                  <div><b>{r.buyer_name}</b> möchte <b>{r.item_title}</b> für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} anfordern.</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => onAcceptRequest(r)}>Annehmen</button>
+                    <button style={styles.smallBtnGhostInk} disabled={requestActionId === r.id} onClick={() => onDeclineRequest(r)}>Ablehnen</button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+          {outgoingRequests.length > 0 && (
+            <>
+              <div style={styles.tradeSubhead}>Von dir gestellt</div>
+              {outgoingRequests.map((r) => (
+                <div key={r.id} style={styles.tradeRow}>
+                  Du hast <b>{r.item_title}</b> bei {r.seller_name} für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} angefragt — Status: {r.status}
+                  {r.status === "angenommen" && <> 🎉 Antworte hier auf die zugehörige Unterhaltung, um Adresse/Übergabe zu klären.</>}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {hasOffers && (
+        <div style={{ marginBottom: 32 }}>
+          <h2 style={styles.profileSectionTitle}>Tauschanfragen</h2>
+          {incomingOffers.length > 0 && (
+            <>
+              <div style={styles.tradeSubhead}>An dich</div>
+              {incomingOffers.map((o) => (
+                <div key={o.id} style={styles.tradeRow}>
+                  <div><b>{o.offerer_name}</b> bietet <b>{o.offered_listing_title}</b> im Tausch für dein <b>{o.target_item_title}</b>{o.message ? <> — "{o.message}"</> : ""}</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <button style={styles.smallBtn} disabled={tradeActionId === o.id} onClick={() => onAcceptOffer(o)}>Annehmen</button>
+                    <button style={styles.smallBtnGhostInk} disabled={tradeActionId === o.id} onClick={() => onDeclineOffer(o)}>Ablehnen</button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+          {outgoingOffers.length > 0 && (
+            <>
+              <div style={styles.tradeSubhead}>Von dir gestellt</div>
+              {outgoingOffers.map((o) => (
+                <div key={o.id} style={styles.tradeRow}>Du bietest <b>{o.offered_listing_title}</b> für <b>{o.target_item_title}</b> bei {o.target_owner_name} — Status: {o.status}</div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {(hasOffers || hasRequests) && <h2 style={styles.profileSectionTitle}>Unterhaltungen</h2>}
       <Inbox conversations={conversations} userId={userId} replyDrafts={replyDrafts} onDraftChange={onDraftChange} onReply={onReply} replySendingKey={replySendingKey} />
     </div>
   );
 }
 
-function ActiveListingsSection({ listings, onDelete }) {
+function ActiveListingsSection({ listings, onDelete, onView }) {
   return (
     <div style={{ marginBottom: 36 }}>
       <h2 style={styles.profileSectionTitle}>Aktive Zettel</h2>
-      <p style={styles.legalP}>Deine Angebote und Gesuche, die gerade am Schwarzen Brett hängen.</p>
+      <p style={styles.legalP}>Deine Angebote und Gesuche, die gerade am Schwarzen Brett hängen. Zum Ansehen anklicken.</p>
       {listings.length === 0 ? (
         <div style={styles.inboxEmpty}>Noch nichts Aktives hier.</div>
       ) : (
@@ -357,12 +424,12 @@ function ActiveListingsSection({ listings, onDelete }) {
           {listings.map((l) => (
             <div key={l.id} style={styles.completedRow}>
               {l.image_url && <img src={l.image_url} alt={l.title} style={styles.completedImg} />}
-              <div style={{ flex: 1 }}>
+              <button style={styles.completedClickable} onClick={() => onView(l)}>
                 <div style={styles.completedTitle}>{l.title}</div>
                 <div style={styles.completedMeta}>
                   {l.listing_type === "suche" ? "Gesuch" : <>{l.price} {l.price === 1 ? CURRENCY_SINGULAR : CURRENCY}</>}
                 </div>
-              </div>
+              </button>
               <button style={styles.smallBtnGhostInk} onClick={() => onDelete(l.id)}>Löschen</button>
             </div>
           ))}
@@ -402,7 +469,7 @@ function CompletedListingsSection({ listings, onDelete, profilesById }) {
   );
 }
 
-function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById }) {
+function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zu MantyCat</a>
@@ -411,7 +478,7 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
         <h2 style={styles.profileSectionTitle}>Profil bearbeiten</h2>
         <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
       </div>
-      <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} />
+      <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} onView={onViewActiveListing} />
       <CompletedListingsSection listings={completedListings} onDelete={onDeleteListing} profilesById={profilesById} />
     </div>
   );
@@ -946,6 +1013,17 @@ export default function App() {
     } catch (e) { setError("Zettel konnte nicht abgehängt werden."); }
   }
 
+  function viewListingOnBoard(item) {
+    setTypeFilter(item.listing_type || "biete");
+    setCatFilter("alle");
+    setQuery(item.title);
+    if (window.location.hash) window.location.hash = "";
+    setTimeout(() => {
+      const el = document.getElementById("angebote");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }, 60);
+  }
+
   async function requestItem(item) {
     if (!session || item.owner_id === session.user.id) return;
     setRequestingId(item.id);
@@ -1210,11 +1288,9 @@ export default function App() {
           {session ? (
             <span style={styles.whoami}>
               {isAdmin && <span style={styles.reportPill}>Meldungen {(openReports.length + openContentReports.length) > 0 ? `(${openReports.length + openContentReports.length})` : ""}</span>}
-              {profile && incomingOffers.length > 0 && <span style={styles.tradePill}>Tauschanfragen ({incomingOffers.length})</span>}
-              {profile && incomingRequests.length > 0 && <span style={styles.tradePill}>Anfragen ({incomingRequests.length})</span>}
               {profile && (
                 <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; markInboxRead(); }}>
-                  Nachrichten {unreadCount > 0 ? `(${unreadCount})` : ""}
+                  Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.length})` : ""}
                 </button>
               )}
               {profile?.avatar && <span style={{ fontSize: 16 }}>{profile.avatar}</span>}
@@ -1231,9 +1307,13 @@ export default function App() {
       </header>
 
       {page === "nachrichten" && session ? (
-        <MessagesPage conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey} />
+        <MessagesPage
+          conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey}
+          incomingOffers={incomingOffers} outgoingOffers={outgoingOffers} onAcceptOffer={acceptTradeOffer} onDeclineOffer={declineTradeOffer} tradeActionId={tradeActionId}
+          incomingRequests={incomingRequests} outgoingRequests={outgoingRequests} onAcceptRequest={acceptPurchaseRequest} onDeclineRequest={declinePurchaseRequest} requestActionId={requestActionId}
+        />
       ) : page === "profil" && session && profile ? (
-        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} />
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} />
       ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
@@ -1345,65 +1425,6 @@ export default function App() {
             <div style={styles.wordCloud}>
               {topListingWords.map(([w, c]) => <span key={w} style={styles.wordChip}>{w} ({c})</span>)}
             </div>
-          )}
-        </section>
-      )}
-
-      {session && (incomingOffers.length > 0 || outgoingOffers.length > 0) && (
-        <section style={styles.tradeSection}>
-          <h2 style={styles.tradeSectionTitle}>Tauschanfragen</h2>
-          {incomingOffers.length > 0 && (
-            <>
-              <div style={styles.tradeSubhead}>An dich</div>
-              {incomingOffers.map((o) => (
-                <div key={o.id} style={styles.tradeRow}>
-                  <div><b>{o.offerer_name}</b> bietet <b>{o.offered_listing_title}</b> im Tausch für dein <b>{o.target_item_title}</b>{o.message ? <> — "{o.message}"</> : ""}</div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                    <button style={styles.smallBtn} disabled={tradeActionId === o.id} onClick={() => acceptTradeOffer(o)}>Annehmen</button>
-                    <button style={styles.smallBtnGhostInk} disabled={tradeActionId === o.id} onClick={() => declineTradeOffer(o)}>Ablehnen</button>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-          {outgoingOffers.length > 0 && (
-            <>
-              <div style={styles.tradeSubhead}>Von dir gestellt</div>
-              {outgoingOffers.map((o) => (
-                <div key={o.id} style={styles.tradeRow}>Du bietest <b>{o.offered_listing_title}</b> für <b>{o.target_item_title}</b> bei {o.target_owner_name} — Status: {o.status}</div>
-              ))}
-            </>
-          )}
-        </section>
-      )}
-
-      {session && (incomingRequests.length > 0 || outgoingRequests.length > 0) && (
-        <section style={styles.tradeSection}>
-          <h2 style={styles.tradeSectionTitle}>Anfragen</h2>
-          {incomingRequests.length > 0 && (
-            <>
-              <div style={styles.tradeSubhead}>An dich</div>
-              {incomingRequests.map((r) => (
-                <div key={r.id} style={styles.tradeRow}>
-                  <div><b>{r.buyer_name}</b> möchte <b>{r.item_title}</b> für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} anfordern.</div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                    <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => acceptPurchaseRequest(r)}>Annehmen</button>
-                    <button style={styles.smallBtnGhostInk} disabled={requestActionId === r.id} onClick={() => declinePurchaseRequest(r)}>Ablehnen</button>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-          {outgoingRequests.length > 0 && (
-            <>
-              <div style={styles.tradeSubhead}>Von dir gestellt</div>
-              {outgoingRequests.map((r) => (
-                <div key={r.id} style={styles.tradeRow}>
-                  Du hast <b>{r.item_title}</b> bei {r.seller_name} für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} angefragt — Status: {r.status}
-                  {r.status === "angenommen" && <> 🎉 Nimm über die Nachrichtenfunktion auf dem Zettel Kontakt auf, um Adresse/Übergabe zu klären.</>}
-                </div>
-              ))}
-            </>
           )}
         </section>
       )}
@@ -1646,6 +1667,7 @@ const styles = {
   inboxEmpty: { fontSize: 13, color: COLORS.mossDark },
   completedList: { display: "flex", flexDirection: "column", gap: 10 },
   completedRow: { display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: "10px 14px" },
+  completedClickable: { flex: 1, background: "none", border: "none", padding: 0, margin: 0, textAlign: "left", cursor: "pointer" },
   completedImg: { width: 48, height: 48, objectFit: "cover", borderRadius: 6, flexShrink: 0 },
   completedTitle: { fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 },
   completedMeta: { fontSize: 12.5, color: COLORS.mossDark, marginTop: 2 },
