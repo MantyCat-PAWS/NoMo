@@ -466,7 +466,7 @@ function AgbPage() {
       <LegalSection heading='5. Die Verrechnungseinheit „Paws"'>
         <ul style={styles.legalUl}>
           <li>Paws sind eine rein plattforminterne Verrechnungseinheit ohne eigenständigen Geldwert.</li>
-          <li>Paws können ausschließlich durch das Einstellen eigener Angebote erworben und ausschließlich zum Anfordern fremder Angebote innerhalb der Plattform verwendet werden.</li>
+          <li>Paws erhält man, sobald ein eigenes Angebot von einer anderen Person angefordert und die Anfrage angenommen wurde, und kann sie ausschließlich zum Anfordern fremder Angebote innerhalb der Plattform verwenden.</li>
           <li>Ein Kauf, Verkauf, Umtausch in gesetzliche Zahlungsmittel oder eine Auszahlung von Paws ist nicht möglich und auch zwischen Nutzer:innen untereinander nicht gestattet.</li>
           <li>Es besteht kein Anspruch auf einen bestimmten Gegenwert der Paws.</li>
         </ul>
@@ -900,13 +900,6 @@ export default function App() {
       });
       if (insErr) throw insErr;
 
-      if (form.listingType === "biete" && price > 0) {
-        const newBalance = (profile?.balance || 0) + price;
-        const { error: balErr } = await supabase.from("profiles").update({ balance: newBalance }).eq("id", session.user.id);
-        if (balErr) throw balErr;
-        setProfile((p) => ({ ...p, balance: newBalance }));
-      }
-
       setForm({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
       setImageFile(null);
       setImagePreview(null);
@@ -964,9 +957,7 @@ export default function App() {
       }
 
       await supabase.from("profiles").update({ balance: buyerRow.balance - req.total_paws }).eq("id", req.buyer_id);
-      if (itemRow.shipping_paws > 0) {
-        await supabase.from("profiles").update({ balance: (sellerRow?.balance || 0) + itemRow.shipping_paws }).eq("id", req.seller_id);
-      }
+      await supabase.from("profiles").update({ balance: (sellerRow?.balance || 0) + req.total_paws }).eq("id", req.seller_id);
       await supabase.from("listings").update({ status: "vergeben", buyer_id: req.buyer_id }).eq("id", req.item_id);
       await supabase.from("purchase_requests").update({ status: "angenommen" }).eq("id", req.id);
 
@@ -1221,7 +1212,7 @@ export default function App() {
       <>
       <section style={styles.hero}>
         <h1 className="mc-hero-title" style={styles.heroTitle}>Tauschen mit<br />{CURRENCY}.</h1>
-        <p style={styles.heroSub}>Du bekommst {CURRENCY}, wenn du selbst etwas einstellst, und gibst sie aus, um andere Angebote zu holen. Du kannst auch einfach ein Gesuch einstellen, wenn du etwas Bestimmtes suchst. Keine Paws übrig? Biete stattdessen direkt eines deiner Angebote zum Tausch an.</p>
+        <p style={styles.heroSub}>Du bekommst {CURRENCY}, wenn dir jemand ein Angebot abkauft, und gibst sie aus, um andere Angebote zu holen. Du kannst auch einfach ein Gesuch einstellen, wenn du etwas Bestimmtes suchst. Keine Paws übrig? Biete stattdessen direkt eines deiner Angebote zum Tausch an.</p>
         <p style={styles.heroSubSmall}>
           Und für alle, die gern öfter mal ein neues Hobby ausprobieren, gerade auch mit ADHS/Neurodivergenz: Statt Equipment zu kaufen, das nach ein paar Wochen in der Ecke landet, einfach eintauschen, ausprobieren und weitergeben, wenn das nächste Interesse ruft. Ganz ohne schlechtes Gewissen.
         </p>
