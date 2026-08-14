@@ -170,7 +170,7 @@ function ReportForm({ item, onSubmit, onCancel, submitting }) {
   );
 }
 
-function TicketCard({ item, isMine, canAfford, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting }) {
+function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting }) {
   const info = catInfo(item.category);
   const total = item.price + (item.shipping_paws || 0);
   const accent = item.owner_accent_color ? colorHex(item.owner_accent_color) : COLORS.ink;
@@ -217,9 +217,9 @@ function TicketCard({ item, isMine, canAfford, onDelete, onRequest, requesting, 
         )}
         {!isMine && !isSuche && item.status !== "vergeben" && (
           <div style={styles.actionRow}>
-            <button style={{ ...styles.requestBtn, ...(canAfford ? {} : styles.requestBtnDisabled) }}
-              onClick={() => onRequest(item)} disabled={requesting || !canAfford}>
-              {requesting ? "einen Moment…" : canAfford ? `Für ${total} ${total === 1 ? CURRENCY_SINGULAR : CURRENCY} anfordern` : "zu wenig " + CURRENCY}
+            <button style={{ ...styles.requestBtn, ...(canAfford && !alreadyRequested ? {} : styles.requestBtnDisabled) }}
+              onClick={() => onRequest(item)} disabled={requesting || !canAfford || alreadyRequested}>
+              {requesting ? "einen Moment…" : alreadyRequested ? "Anfrage gesendet, warte auf Antwort" : canAfford ? `Für ${total} ${total === 1 ? CURRENCY_SINGULAR : CURRENCY} anfragen` : "zu wenig " + CURRENCY}
             </button>
             <div style={{ display: "flex", gap: 6 }}>
               <button style={styles.tradeToggleBtn} onClick={() => onToggleTradeForm(item.id)}>
@@ -530,6 +530,7 @@ export default function App() {
   const [listings, setListings] = useState([]);
   const [ratings, setRatings] = useState([]);
   const [tradeOffers, setTradeOffers] = useState([]);
+  const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [listingReports, setListingReports] = useState([]);
   const [searchLogs, setSearchLogs] = useState([]);
   const [reportFormItemId, setReportFormItemId] = useState(null);
@@ -550,6 +551,7 @@ export default function App() {
   const [imagePreview, setImagePreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [requestingId, setRequestingId] = useState(null);
+  const [requestActionId, setRequestActionId] = useState(null);
   const [ratingSubmittingId, setRatingSubmittingId] = useState(null);
   const [tradeFormItemId, setTradeFormItemId] = useState(null);
   const [tradeSubmittingId, setTradeSubmittingId] = useState(null);
@@ -566,12 +568,13 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [{ data: profs }, { data: lst }, { data: rts }, { data: offs }, { data: reps }] = await Promise.all([
+      const [{ data: profs }, { data: lst }, { data: rts }, { data: offs }, { data: reps }, { data: preqs }] = await Promise.all([
         supabase.from("profiles").select("*"),
         supabase.from("listings").select("*").order("created_at", { ascending: false }),
         supabase.from("ratings").select("*"),
         supabase.from("trade_offers").select("*"),
         supabase.from("listing_reports").select("*"),
+        supabase.from("purchase_requests").select("*"),
       ]);
       const pMap = {};
       (profs || []).forEach((p) => { pMap[p.id] = p; });
@@ -580,6 +583,7 @@ export default function App() {
       setRatings(rts || []);
       setTradeOffers(offs || []);
       setListingReports(reps || []);
+      setPurchaseRequests(preqs || []);
     } catch (e) {
       setError("Daten konnten nicht geladen werden.");
     } finally {
@@ -674,6 +678,21 @@ export default function App() {
     return tradeOffers.filter((o) => o.offerer_id === session.user.id && o.status !== "abgelehnt")
       .map((o) => ({ ...o, target_owner_name: profilesById[o.target_owner_id]?.display_name, target_item_title: listings.find((l) => l.id === o.target_item_id)?.title, offered_listing_title: listings.find((l) => l.id === o.offered_listing_id)?.title }));
   }, [tradeOffers, session, profilesById, listings]);
+
+  const incomingRequests = useMemo(() => {
+    if (!session) return [];
+    return purchaseRequests.filter((r) => r.seller_id === session.user.id && r.status === "offen")
+      .map((r) => ({ ...r, buyer_name: profilesById[r.buyer_id]?.display_name }));
+  }, [purchaseRequests, session, profilesById]);
+  const outgoingRequests = useMemo(() => {
+    if (!session) return [];
+    return purchaseRequests.filter((r) => r.buyer_id === session.user.id && r.status !== "abgelehnt")
+      .map((r) => ({ ...r, seller_name: profilesById[r.seller_id]?.display_name }));
+  }, [purchaseRequests, session, profilesById]);
+  const myOpenRequestItemIds = useMemo(() => {
+    if (!session) return new Set();
+    return new Set(purchaseRequests.filter((r) => r.buyer_id === session.user.id && r.status === "offen").map((r) => r.item_id));
+  }, [purchaseRequests, session]);
 
   const myConversations = useMemo(() => {
     if (!session) return [];
@@ -866,22 +885,64 @@ export default function App() {
       const total = item.price + (item.shipping_paws || 0);
       if ((profile?.balance || 0) < total) { setError("Du hast nicht genug " + CURRENCY + " für dieses Angebot inkl. Versand."); setRequestingId(null); return; }
 
-      const { error: listErr } = await supabase.from("listings").update({ status: "vergeben", buyer_id: session.user.id }).eq("id", item.id);
-      if (listErr) throw listErr;
-
-      const newBuyerBalance = profile.balance - total;
-      await supabase.from("profiles").update({ balance: newBuyerBalance }).eq("id", session.user.id);
-      setProfile((p) => ({ ...p, balance: newBuyerBalance }));
-
-      if (item.shipping_paws > 0) {
-        const seller = profilesById[item.owner_id];
-        const newSellerBalance = (seller?.balance || 0) + item.shipping_paws;
-        await supabase.from("profiles").update({ balance: newSellerBalance }).eq("id", item.owner_id);
-      }
+      const { error: insErr } = await supabase.from("purchase_requests").insert({
+        item_id: item.id, item_title: item.title, buyer_id: session.user.id, seller_id: item.owner_id, total_paws: total,
+      });
+      if (insErr) throw insErr;
       fetchAll();
     } catch (e) {
-      setError("Anfordern hat nicht geklappt. Bitte nochmal versuchen.");
+      setError("Anfrage konnte nicht gesendet werden. Bitte nochmal versuchen.");
     } finally { setRequestingId(null); }
+  }
+
+  async function acceptPurchaseRequest(req) {
+    setRequestActionId(req.id);
+    setError(null);
+    try {
+      const users = {}; // frische Salden holen, damit nichts veraltet ist
+      const { data: buyerRow } = await supabase.from("profiles").select("balance").eq("id", req.buyer_id).single();
+      const { data: sellerRow } = await supabase.from("profiles").select("balance").eq("id", req.seller_id).single();
+      if (!buyerRow || (buyerRow.balance || 0) < req.total_paws) {
+        setError("Diese Person hat nicht mehr genug " + CURRENCY + ", die Anfrage kann nicht angenommen werden.");
+        setRequestActionId(null);
+        return;
+      }
+
+      const { data: itemRow } = await supabase.from("listings").select("status, shipping_paws").eq("id", req.item_id).single();
+      if (!itemRow || itemRow.status !== "verfuegbar") {
+        setError("Dieses Angebot ist nicht mehr verfügbar.");
+        setRequestActionId(null);
+        return;
+      }
+
+      await supabase.from("profiles").update({ balance: buyerRow.balance - req.total_paws }).eq("id", req.buyer_id);
+      if (itemRow.shipping_paws > 0) {
+        await supabase.from("profiles").update({ balance: (sellerRow?.balance || 0) + itemRow.shipping_paws }).eq("id", req.seller_id);
+      }
+      await supabase.from("listings").update({ status: "vergeben", buyer_id: req.buyer_id }).eq("id", req.item_id);
+      await supabase.from("purchase_requests").update({ status: "angenommen" }).eq("id", req.id);
+
+      const otherOpen = purchaseRequests.filter((r) => r.item_id === req.item_id && r.id !== req.id && r.status === "offen");
+      for (const r of otherOpen) {
+        await supabase.from("purchase_requests").update({ status: "abgelehnt" }).eq("id", r.id);
+      }
+
+      fetchAll();
+      if (session) loadOwnProfile(session.user.id);
+    } catch (e) {
+      setError("Anfrage konnte nicht angenommen werden.");
+    } finally { setRequestActionId(null); }
+  }
+
+  async function declinePurchaseRequest(req) {
+    setRequestActionId(req.id);
+    setError(null);
+    try {
+      await supabase.from("purchase_requests").update({ status: "abgelehnt" }).eq("id", req.id);
+      fetchAll();
+    } catch (e) {
+      setError("Anfrage konnte nicht abgelehnt werden.");
+    } finally { setRequestActionId(null); }
   }
 
   async function submitRating(item, stars, comment) {
@@ -1072,6 +1133,7 @@ export default function App() {
             <span style={styles.whoami}>
               {isAdmin && <span style={styles.reportPill}>Meldungen {(openReports.length + openContentReports.length) > 0 ? `(${openReports.length + openContentReports.length})` : ""}</span>}
               {profile && incomingOffers.length > 0 && <span style={styles.tradePill}>Tauschanfragen ({incomingOffers.length})</span>}
+              {profile && incomingRequests.length > 0 && <span style={styles.tradePill}>Anfragen ({incomingRequests.length})</span>}
               {profile && (
                 <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; markInboxRead(); }}>
                   Nachrichten {unreadCount > 0 ? `(${unreadCount})` : ""}
@@ -1242,6 +1304,37 @@ export default function App() {
         </section>
       )}
 
+      {session && (incomingRequests.length > 0 || outgoingRequests.length > 0) && (
+        <section style={styles.tradeSection}>
+          <h2 style={styles.tradeSectionTitle}>Anfragen</h2>
+          {incomingRequests.length > 0 && (
+            <>
+              <div style={styles.tradeSubhead}>An dich</div>
+              {incomingRequests.map((r) => (
+                <div key={r.id} style={styles.tradeRow}>
+                  <div><b>{r.buyer_name}</b> möchte <b>{r.item_title}</b> für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} anfordern.</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => acceptPurchaseRequest(r)}>Annehmen</button>
+                    <button style={styles.smallBtnGhostInk} disabled={requestActionId === r.id} onClick={() => declinePurchaseRequest(r)}>Ablehnen</button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+          {outgoingRequests.length > 0 && (
+            <>
+              <div style={styles.tradeSubhead}>Von dir gestellt</div>
+              {outgoingRequests.map((r) => (
+                <div key={r.id} style={styles.tradeRow}>
+                  Du hast <b>{r.item_title}</b> bei {r.seller_name} für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} angefragt — Status: {r.status}
+                  {r.status === "angenommen" && <> 🎉 Nimm über die Nachrichtenfunktion auf dem Zettel Kontakt auf, um Adresse/Übergabe zu klären.</>}
+                </div>
+              ))}
+            </>
+          )}
+        </section>
+      )}
+
       <section id="angebote" style={styles.board}>
         <div style={styles.boardHead}>
           <h2 style={styles.boardTitle}>Das Schwarze Brett</h2>
@@ -1381,6 +1474,7 @@ export default function App() {
                     item={item}
                     isMine={session && item.owner_id === session.user.id}
                     canAfford={session && profile && profile.balance >= item.price + (item.shipping_paws || 0)}
+                    alreadyRequested={myOpenRequestItemIds.has(item.id)}
                     onDelete={deleteListing}
                     onRequest={requestItem}
                     requesting={requestingId === item.id}
