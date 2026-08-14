@@ -340,6 +340,37 @@ function MessagesPage({ conversations, userId, replyDrafts, onDraftChange, onRep
   );
 }
 
+function CompletedListingsPage({ listings, onDelete, profilesById }) {
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zu MantyCat</a>
+      <h1 style={styles.legalTitle}>Abgeschlossene Zettel</h1>
+      <p style={styles.legalP}>Angebote, die vergeben wurden. Nur du siehst diese Seite, sie tauchen am Schwarzen Brett nicht mehr auf.</p>
+      {listings.length === 0 ? (
+        <div style={styles.inboxEmpty}>Noch nichts Abgeschlossenes hier.</div>
+      ) : (
+        <div style={styles.completedList}>
+          {listings.map((l) => {
+            const buyerName = profilesById[l.buyer_id]?.display_name;
+            return (
+              <div key={l.id} style={styles.completedRow}>
+                {l.image_url && <img src={l.image_url} alt={l.title} style={styles.completedImg} />}
+                <div style={{ flex: 1 }}>
+                  <div style={styles.completedTitle}>{l.title}</div>
+                  <div style={styles.completedMeta}>
+                    {l.traded_for ? <>getauscht gegen "{l.traded_for}"</> : <>{l.price} {l.price === 1 ? CURRENCY_SINGULAR : CURRENCY}{buyerName ? <> an {buyerName}</> : ""}</>}
+                  </div>
+                </div>
+                <button style={styles.smallBtnGhostInk} onClick={() => onDelete(l.id)}>Löschen</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PLACEHOLDER_STYLE = { color: "#B5501F", fontStyle: "italic" };
 function Ph({ children }) {
   return <span style={PLACEHOLDER_STYLE}>[{children}]</span>;
@@ -1099,12 +1130,18 @@ export default function App() {
   }
 
   const visible = listings.filter((l) => {
+    if (l.status === "vergeben") return false;
     const matchesType = (l.listing_type || "biete") === typeFilter;
     const matchesCat = catFilter === "alle" || l.category === catFilter;
     const q = query.trim().toLowerCase();
     const matchesQuery = !q || l.title.toLowerCase().includes(q) || l.description.toLowerCase().includes(q);
     return matchesType && matchesCat && matchesQuery;
   });
+
+  const myCompletedListings = useMemo(() => {
+    if (!session) return [];
+    return listings.filter((l) => l.owner_id === session.user.id && l.status === "vergeben");
+  }, [listings, session]);
 
   return (
     <div style={styles.page}>
@@ -1144,6 +1181,7 @@ export default function App() {
               {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
               {!profile && <span style={styles.authError}>Profil konnte nicht geladen werden</span>}
               {profile && <button style={styles.logoutLink} onClick={() => setShowProfile((s) => !s)}>profil</button>}
+              {profile && <button style={styles.logoutLink} onClick={() => { window.location.hash = "abgeschlossen"; }}>abgeschlossene zettel</button>}
               <button style={styles.logoutLink} onClick={handleLogout}>abmelden</button>
             </span>
           ) : (
@@ -1154,6 +1192,8 @@ export default function App() {
 
       {page === "nachrichten" && session ? (
         <MessagesPage conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey} />
+      ) : page === "abgeschlossen" && session ? (
+        <CompletedListingsPage listings={myCompletedListings} onDelete={deleteListing} profilesById={profilesById} />
       ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
@@ -1553,6 +1593,11 @@ const styles = {
   colorSwatchActive: { boxShadow: `0 0 0 2px ${COLORS.ink}` },
   inboxBox: { maxWidth: 640, margin: "-28px auto 0", background: "#fff", border: `2px solid ${COLORS.ink}`, borderRadius: 6, padding: "18px 20px 20px", boxShadow: `0 6px 0 ${COLORS.ink}`, position: "relative", zIndex: 2 },
   inboxEmpty: { fontSize: 13, color: COLORS.mossDark },
+  completedList: { display: "flex", flexDirection: "column", gap: 10 },
+  completedRow: { display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: "10px 14px" },
+  completedImg: { width: 48, height: 48, objectFit: "cover", borderRadius: 6, flexShrink: 0 },
+  completedTitle: { fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 },
+  completedMeta: { fontSize: 12.5, color: COLORS.mossDark, marginTop: 2 },
   convBox: { border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: 12, marginBottom: 12 },
   convHead: { fontSize: 12.5, color: COLORS.mossDark, marginBottom: 8, fontFamily: "'IBM Plex Mono', monospace" },
   convMessages: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 },
