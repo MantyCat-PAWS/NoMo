@@ -1050,6 +1050,7 @@ export default function App() {
         @media (prefers-reduced-motion: reduce) { .mc-btn, .mc-ticket { transition: none !important; } .mc-btn:hover, .mc-ticket:hover { transform: none !important; } }
         .mc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 22px; }
         @media (max-width: 560px) { .mc-hero-title { font-size: 38px !important; } }
+        @media (min-width: 1200px) { .mc-ad { display: flex !important; position: fixed; left: 20px; top: 150px; z-index: 4; } }
       `}</style>
 
       <header style={styles.header}>
@@ -1093,11 +1094,12 @@ export default function App() {
         <a href="#angebote" className="mc-btn" style={styles.heroCta}>Zettel durchstöbern ↓</a>
       </section>
 
-      <div style={styles.adBanner}>
+      <div className="mc-ad" style={styles.adBanner}>
         <div style={styles.adBannerInner}>
           <span style={styles.adLabel}>Anzeige</span>
+          <b style={styles.adTitle}>centerpiece Tattoos</b>
           <span style={styles.adText}>
-            <b>centerpiece Tattoos</b> — Tattoostudio in Traun, spezialisiert auf Portraits, Black'n'Grey und Realismus.
+            Tattoostudio in Traun, spezialisiert auf Portraits, Black'n'Grey und Realismus.
           </span>
           <a href="https://centerpiece.at" target="_blank" rel="noopener noreferrer" style={styles.adLink}>centerpiece.at ↗</a>
         </div>
@@ -1505,11 +1507,12 @@ const styles = {
   bigTabs: { display: "flex", gap: 8, marginBottom: 16 },
   bigTab: { fontFamily: "'IBM Plex Mono', monospace", fontWeight: 500, fontSize: 14, padding: "10px 20px", borderRadius: 6, border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer" },
   bigTabActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
-  adBanner: { maxWidth: 1000, margin: "24px auto 0", padding: "0 28px" },
-  adBannerInner: { display: "flex", alignItems: "center", gap: 16, background: "#fff", border: `2px solid ${COLORS.ink}`, borderRadius: 8, padding: "16px 20px", boxShadow: `0 6px 0 ${COLORS.ink}` },
-  adLabel: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.1em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, borderRadius: 3, padding: "2px 6px", flexShrink: 0 },
-  adText: { fontSize: 13.5, color: "#3A3A34", flex: 1 },
-  adLink: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, color: COLORS.moss, textDecoration: "underline", flexShrink: 0, whiteSpace: "nowrap" },
+  adBanner: { display: "none" },
+  adBannerInner: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, background: "#fff", border: `2px solid ${COLORS.ink}`, borderRadius: 8, padding: "16px 16px", boxShadow: `0 6px 0 ${COLORS.ink}`, width: 176 },
+  adTitle: { fontFamily: "'Fraunces', serif", fontSize: 15, color: COLORS.ink },
+  adLabel: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.1em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, borderRadius: 3, padding: "2px 6px" },
+  adText: { fontSize: 12.5, color: "#3A3A34", lineHeight: 1.4 },
+  adLink: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: COLORS.moss, textDecoration: "underline" },
   soldBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.rust, padding: "3px 8px", borderRadius: 3 },
   bizBadge: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.moss, padding: "3px 8px", borderRadius: 3 },
   reportLink: { marginTop: 10, alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.mossDark, textDecoration: "underline", cursor: "pointer" },
