@@ -330,6 +330,16 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
   );
 }
 
+function MessagesPage({ conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey }) {
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zu MantyCat</a>
+      <h1 style={styles.legalTitle}>Nachrichten</h1>
+      <Inbox conversations={conversations} userId={userId} replyDrafts={replyDrafts} onDraftChange={onDraftChange} onReply={onReply} replySendingKey={replySendingKey} />
+    </div>
+  );
+}
+
 const PLACEHOLDER_STYLE = { color: "#B5501F", fontStyle: "italic" };
 function Ph({ children }) {
   return <span style={PLACEHOLDER_STYLE}>[{children}]</span>;
@@ -526,7 +536,6 @@ export default function App() {
   const [reportSubmittingId, setReportSubmittingId] = useState(null);
   const [reportActionId, setReportActionId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [showInbox, setShowInbox] = useState(false);
   const [replyDrafts, setReplyDrafts] = useState({});
   const [replySendingKey, setReplySendingKey] = useState(null);
 
@@ -734,7 +743,7 @@ export default function App() {
   async function handleLogout() {
     await supabase.auth.signOut();
     setShowProfile(false);
-    setShowInbox(false);
+    if (["nachrichten"].includes(page)) window.location.hash = "";
   }
 
   async function saveProfile(newProfile) {
@@ -1064,7 +1073,7 @@ export default function App() {
               {isAdmin && <span style={styles.reportPill}>Meldungen {(openReports.length + openContentReports.length) > 0 ? `(${openReports.length + openContentReports.length})` : ""}</span>}
               {profile && incomingOffers.length > 0 && <span style={styles.tradePill}>Tauschanfragen ({incomingOffers.length})</span>}
               {profile && (
-                <button style={styles.msgPillBtn} onClick={() => { setShowInbox((s) => !s); if (!showInbox) markInboxRead(); }}>
+                <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; markInboxRead(); }}>
                   Nachrichten {unreadCount > 0 ? `(${unreadCount})` : ""}
                 </button>
               )}
@@ -1081,7 +1090,9 @@ export default function App() {
         </div>
       </header>
 
-      {isLegalPage ? (
+      {page === "nachrichten" && session ? (
+        <MessagesPage conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey} />
+      ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
       <>
@@ -1138,13 +1149,6 @@ export default function App() {
         <section style={styles.profileBox}>
           <h2 style={styles.profileTitle}>Dein Profil</h2>
           <ProfileEditor profile={profile} onSave={saveProfile} saving={profileSaving} />
-        </section>
-      )}
-
-      {session && showInbox && (
-        <section style={styles.inboxBox}>
-          <h2 style={styles.profileTitle}>Nachrichten</h2>
-          <Inbox conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey} />
         </section>
       )}
 
