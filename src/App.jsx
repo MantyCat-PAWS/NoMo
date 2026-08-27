@@ -185,22 +185,40 @@ function TradeOfferForm({ item, myListings, onSubmit, onCancel, submitting }) {
 
 function OfferForm({ item, onSubmit, onCancel, submitting, onSwitchToTrade }) {
   const askingTotal = item.price + (item.shipping_paws || 0);
+  const canOfferPickup = catInfo(item.category).physical && item.ships !== false && (item.shipping_paws || 0) > 0;
+  const [pickup, setPickup] = useState(false);
   const [amount, setAmount] = useState(String(askingTotal));
   const n = Number(amount);
-  const isLower = n < askingTotal;
+  const isLower = n < (pickup ? item.price : askingTotal);
+
+  function togglePickup() {
+    const next = !pickup;
+    setPickup(next);
+    // Vorschlag anpassen: Versandkosten raus- bzw. wieder reinrechnen, solange noch nicht selbst verändert
+    if (Number(amount) === (next ? askingTotal : item.price)) {
+      setAmount(String(next ? item.price : askingTotal));
+    }
+  }
+
   return (
     <div style={styles.tradeBox}>
+      {canOfferPickup && (
+        <label style={styles.checkboxRow}>
+          <input type="checkbox" checked={pickup} onChange={togglePickup} />
+          Stattdessen lieber abholen (spart {item.shipping_paws} {item.shipping_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} Versand)
+        </label>
+      )}
       <label style={styles.label}>
         Wie viel {CURRENCY} bietest du?
         <input className="mc-input" style={styles.input} type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
       </label>
       {isLower && n >= 0 && (
         <p style={{ ...styles.legalP, marginBottom: 0 }}>
-          Das sind {askingTotal - n} {CURRENCY} weniger als der Angebotspreis ({askingTotal} {CURRENCY}) — {item.owner_display_name} kann dein Angebot annehmen oder ablehnen.
+          Das sind {(pickup ? item.price : askingTotal) - n} {CURRENCY} weniger als der {pickup ? "Preis ohne Versand" : "Angebotspreis"} ({pickup ? item.price : askingTotal} {CURRENCY}) — {item.owner_display_name} kann dein Angebot annehmen oder ablehnen.
         </p>
       )}
       <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-        <button type="button" style={styles.smallBtn} disabled={amount === "" || n < 0 || submitting} onClick={() => onSubmit(item, n)}>
+        <button type="button" style={styles.smallBtn} disabled={amount === "" || n < 0 || submitting} onClick={() => onSubmit(item, n, pickup)}>
           {submitting ? "wird gesendet…" : "Anfrage senden"}
         </button>
         <button type="button" style={styles.smallBtnGhostInk} onClick={onCancel}>Abbrechen</button>
@@ -574,6 +592,7 @@ function MessagesPage({
                         {r.asking_total != null && r.total_paws < r.asking_total && (
                           <span style={styles.convListItem}> (Verhandlungsangebot, ursprünglich {r.asking_total} {CURRENCY})</span>
                         )}
+                        {r.pickup_requested && <span style={styles.convListItem}> 🚗 möchte lieber abholen statt Versand</span>}
                       </div>
                       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                         <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => onAcceptRequest(r)}>Annehmen</button>
@@ -585,6 +604,7 @@ function MessagesPage({
                     <>
                       <div>
                         Angenommen: <b>{r.item_title}</b> an <b>{r.buyer_name}</b> für {r.total_paws} {CURRENCY}. Die {CURRENCY} liegen sicher bereit und werden dir gutgeschrieben, sobald {r.buyer_name} den Erhalt bestätigt.
+                        {r.pickup_requested && <> 🚗 Abholung statt Versand vereinbart.</>}
                         {r.requires_shipping && r.ship_deadline && (
                           <> Bitte bis <b>{new Date(r.ship_deadline).toLocaleDateString("de-AT")}</b> versenden.</>
                         )}
@@ -1474,7 +1494,7 @@ export default function App() {
       .map((r) => {
         const listing = listings.find((l) => l.id === r.item_id);
         const askingTotal = listing ? listing.price + (listing.shipping_paws || 0) : null;
-        const requiresShipping = listing ? (catInfo(listing.category).physical && listing.ships !== false) : false;
+        const requiresShipping = listing ? (!r.pickup_requested && catInfo(listing.category).physical && listing.ships !== false) : false;
         return { ...r, buyer_name: profilesById[r.buyer_id]?.display_name, asking_total: askingTotal, requires_shipping: requiresShipping };
       });
   }, [purchaseRequests, session, profilesById, listings]);
@@ -1483,7 +1503,7 @@ export default function App() {
     return purchaseRequests.filter((r) => r.buyer_id === session.user.id && ["offen", "angenommen", "versendet"].includes(r.status))
       .map((r) => {
         const listing = listings.find((l) => l.id === r.item_id);
-        const requiresShipping = listing ? (catInfo(listing.category).physical && listing.ships !== false) : false;
+        const requiresShipping = listing ? (!r.pickup_requested && catInfo(listing.category).physical && listing.ships !== false) : false;
         return { ...r, seller_name: profilesById[r.seller_id]?.display_name, requires_shipping: requiresShipping };
       });
   }, [purchaseRequests, session, profilesById, listings]);
@@ -1869,7 +1889,7 @@ export default function App() {
     }, 60);
   }
 
-  async function requestItem(item, customTotal) {
+  async function requestItem(item, customTotal, pickupRequested) {
     if (!session || item.owner_id === session.user.id) return;
     const total = customTotal != null ? Math.max(0, Math.round(customTotal)) : item.price + (item.shipping_paws || 0);
     setRequestingId(item.id);
@@ -1878,7 +1898,7 @@ export default function App() {
       if ((profile?.balance || 0) < total) { setError("Du hast nicht genug " + CURRENCY + " für dieses Angebot."); setRequestingId(null); return; }
 
       const { error: insErr } = await supabase.from("purchase_requests").insert({
-        item_id: item.id, item_title: item.title, buyer_id: session.user.id, seller_id: item.owner_id, total_paws: total,
+        item_id: item.id, item_title: item.title, buyer_id: session.user.id, seller_id: item.owner_id, total_paws: total, pickup_requested: !!pickupRequested,
       });
       if (insErr) throw insErr;
       setOfferFormItemId(null);
