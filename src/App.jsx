@@ -183,16 +183,33 @@ function ReportForm({ item, onSubmit, onCancel, submitting }) {
   );
 }
 
-function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting }) {
+function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting, isFavorited, onToggleFavorite, favoriteBusy }) {
   const info = catInfo(item.category);
   const total = item.price + (item.shipping_paws || 0);
   const accent = item.owner_accent_color ? colorHex(item.owner_accent_color) : COLORS.ink;
   const isSuche = item.listing_type === "suche";
+  const gallery = item.image_urls && item.image_urls.length > 0 ? item.image_urls : (item.image_url ? [item.image_url] : []);
+  const [activeImg, setActiveImg] = useState(0);
   return (
     <div style={{ ...styles.ticket, opacity: item.status === "vergeben" ? 0.55 : 1, borderTopColor: accent }}>
       <div style={styles.pin} />
-      {item.image_url && (
-        <img src={item.image_url} alt={item.title} style={styles.ticketImage} />
+      {!isMine && (
+        <button style={styles.favoriteBtn} onClick={() => onToggleFavorite(item)} disabled={favoriteBusy} aria-label="Merken">
+          {isFavorited ? "♥" : "♡"}
+        </button>
+      )}
+      {gallery.length > 0 && (
+        <div>
+          <img src={gallery[Math.min(activeImg, gallery.length - 1)]} alt={item.title} style={styles.ticketImage} />
+          {gallery.length > 1 && (
+            <div style={styles.galleryThumbRow}>
+              {gallery.map((src, i) => (
+                <img key={i} src={src} alt="" onClick={() => setActiveImg(i)}
+                  style={{ ...styles.galleryThumb, ...(i === activeImg ? styles.galleryThumbActive : {}) }} />
+              ))}
+            </div>
+          )}
+        </div>
       )}
       <div style={styles.badgeRow}>
         <span style={styles.catBadge}>{info.label}</span>
@@ -480,7 +497,59 @@ function CompletedListingsSection({ listings, onDelete, profilesById }) {
   );
 }
 
-function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing }) {
+function FavoritesSection({ listings, onView }) {
+  return (
+    <div style={{ marginBottom: 36 }}>
+      <h2 style={styles.profileSectionTitle}>Merkliste</h2>
+      <p style={styles.legalP}>Angebote, die du dir gemerkt hast. Zum Ansehen anklicken.</p>
+      {listings.length === 0 ? (
+        <div style={styles.inboxEmpty}>Noch nichts gemerkt. Klick auf das ♡ auf einem Zettel.</div>
+      ) : (
+        <div style={styles.completedList}>
+          {listings.map((l) => (
+            <div key={l.id} style={styles.completedRow}>
+              {l.image_url && <img src={l.image_url} alt={l.title} style={styles.completedImg} />}
+              <button style={styles.completedClickable} onClick={() => onView(l)}>
+                <div style={styles.completedTitle}>{l.title}</div>
+                <div style={styles.completedMeta}>
+                  {l.listing_type === "suche" ? "Gesuch" : <>{l.price} {l.price === 1 ? CURRENCY_SINGULAR : CURRENCY}</>} · {l.owner_display_name}
+                </div>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SavedSearchesSection({ searches, onApply, onDelete }) {
+  return (
+    <div style={{ marginBottom: 36 }}>
+      <h2 style={styles.profileSectionTitle}>Meine Suchagenten</h2>
+      <p style={styles.legalP}>Gespeicherte Suchen. Bei neuen Treffern seit dem letzten Besuch steht eine Zahl daneben.</p>
+      {searches.length === 0 ? (
+        <div style={styles.inboxEmpty}>Noch kein Suchagent gespeichert. Nutze "Als Suchagent speichern" beim Schwarzen Brett.</div>
+      ) : (
+        <div style={styles.completedList}>
+          {searches.map((s) => (
+            <div key={s.id} style={styles.completedRow}>
+              <button style={styles.completedClickable} onClick={() => onApply(s)}>
+                <div style={styles.completedTitle}>
+                  {s.query ? `"${s.query}"` : "Alle Suchbegriffe"} {s.category !== "alle" && <>· {catInfo(s.category).label}</>}
+                  {s.newCount > 0 && <span style={styles.newMatchBadge}>{s.newCount} neu</span>}
+                </div>
+              </button>
+              <button style={styles.smallBtnGhostInk} onClick={() => onDelete(s.id)}>Löschen</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zu NoMo</a>
@@ -489,6 +558,8 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
         <h2 style={styles.profileSectionTitle}>Profil bearbeiten</h2>
         <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
       </div>
+      <FavoritesSection listings={favoriteListings} onView={onViewFavorite} />
+      <SavedSearchesSection searches={savedSearches} onApply={onApplySearch} onDelete={onDeleteSearch} />
       <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} onView={onViewActiveListing} />
       <CompletedListingsSection listings={completedListings} onDelete={onDeleteListing} profilesById={profilesById} />
     </div>
@@ -687,6 +758,16 @@ export default function App() {
   const [tradeOffers, setTradeOffers] = useState([]);
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [listingReports, setListingReports] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [favoriteBusyId, setFavoriteBusyId] = useState(null);
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [savingSearch, setSavingSearch] = useState(false);
+  const [sortBy, setSortBy] = useState("neu");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [recentSearches, setRecentSearches] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("nomo_recent_searches") || "[]"); } catch (e) { return []; }
+  });
   const [searchLogs, setSearchLogs] = useState([]);
   const [reportFormItemId, setReportFormItemId] = useState(null);
   const [reportSubmittingId, setReportSubmittingId] = useState(null);
@@ -703,8 +784,8 @@ export default function App() {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [saving, setSaving] = useState(false);
   const [requestingId, setRequestingId] = useState(null);
   const [requestActionId, setRequestActionId] = useState(null);
@@ -760,6 +841,7 @@ export default function App() {
       if (session) {
         loadOwnProfile(session.user.id);
         fetchMessages(session.user.id);
+        fetchUserExtras(session.user.id);
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -767,9 +849,12 @@ export default function App() {
       if (s) {
         loadOwnProfile(s.user.id);
         fetchMessages(s.user.id);
+        fetchUserExtras(s.user.id);
       } else {
         setProfile(null);
         setMessages([]);
+        setFavorites([]);
+        setSavedSearches([]);
       }
     });
     return () => listener.subscription.unsubscribe();
@@ -779,6 +864,15 @@ export default function App() {
   async function loadOwnProfile(userId) {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (data) setProfile(data);
+  }
+
+  async function fetchUserExtras(userId) {
+    const [{ data: favs }, { data: searches }] = await Promise.all([
+      supabase.from("favorites").select("*").eq("user_id", userId),
+      supabase.from("saved_searches").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+    ]);
+    setFavorites(favs || []);
+    setSavedSearches(searches || []);
   }
 
   const isAdmin = session && ADMIN_EMAILS.includes(session.user.email);
@@ -791,6 +885,7 @@ export default function App() {
     if (q.length < 2) return;
     const timer = setTimeout(() => {
       supabase.from("search_logs").insert({ query: q, user_id: session ? session.user.id : null }).then(() => {});
+      logRecentSearch(q);
     }, 1200);
     return () => clearTimeout(timer);
   }, [query, session]);
@@ -984,31 +1079,33 @@ export default function App() {
     setSaving(true);
     setError(null);
     try {
-      let imageUrl = null;
-      if (imageFile) {
-        const path = `${session.user.id}/${Date.now()}-${imageFile.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-        const { error: uploadErr } = await supabase.storage.from("listing-images").upload(path, imageFile);
-        if (uploadErr) {
-          setError("Bild konnte nicht hochgeladen werden: " + uploadErr.message);
-          setSaving(false);
-          return;
+      let imageUrls = [];
+      if (imageFiles.length > 0) {
+        for (const file of imageFiles.slice(0, 5)) {
+          const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
+          const { error: uploadErr } = await supabase.storage.from("listing-images").upload(path, file);
+          if (uploadErr) {
+            setError("Bild konnte nicht hochgeladen werden: " + uploadErr.message);
+            setSaving(false);
+            return;
+          }
+          const { data: urlData } = supabase.storage.from("listing-images").getPublicUrl(path);
+          imageUrls.push(urlData.publicUrl);
         }
-        const { data: urlData } = supabase.storage.from("listing-images").getPublicUrl(path);
-        imageUrl = urlData.publicUrl;
       }
 
       const code = String(listings.length + 1).padStart(4, "0");
       const { error: insErr } = await supabase.from("listings").insert({
         code, title: form.title.trim(), category: form.category, description: form.description.trim(),
         price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
-        owner_id: session.user.id, status: "verfuegbar", image_url: imageUrl, seller_type: form.sellerType,
+        owner_id: session.user.id, status: "verfuegbar", image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
         listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
       });
       if (insErr) throw insErr;
 
       setForm({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
-      setImageFile(null);
-      setImagePreview(null);
+      setImageFiles([]);
+      setImagePreviews([]);
       setShowForm(false);
       fetchAll();
     } catch (e) {
@@ -1022,6 +1119,71 @@ export default function App() {
       if (delErr) throw delErr;
       fetchAll();
     } catch (e) { setError("Zettel konnte nicht abgehängt werden."); }
+  }
+
+  async function toggleFavorite(item) {
+    if (!session) return;
+    setFavoriteBusyId(item.id);
+    setError(null);
+    try {
+      const existing = favorites.find((f) => f.item_id === item.id);
+      if (existing) {
+        await supabase.from("favorites").delete().eq("id", existing.id);
+        setFavorites((f) => f.filter((x) => x.id !== existing.id));
+      } else {
+        const { data, error: insErr } = await supabase.from("favorites")
+          .insert({ user_id: session.user.id, item_id: item.id }).select().single();
+        if (insErr) throw insErr;
+        setFavorites((f) => [...f, data]);
+      }
+    } catch (e) {
+      setError("Merkliste konnte nicht aktualisiert werden.");
+    } finally { setFavoriteBusyId(null); }
+  }
+
+  async function saveCurrentSearch() {
+    if (!session) return;
+    setSavingSearch(true);
+    setError(null);
+    try {
+      const { data, error: insErr } = await supabase.from("saved_searches")
+        .insert({ user_id: session.user.id, query: query.trim(), category: catFilter, last_seen_at: new Date().toISOString() })
+        .select().single();
+      if (insErr) throw insErr;
+      setSavedSearches((s) => [data, ...s]);
+    } catch (e) {
+      setError("Suchagent konnte nicht gespeichert werden.");
+    } finally { setSavingSearch(false); }
+  }
+
+  async function deleteSavedSearch(id) {
+    try {
+      await supabase.from("saved_searches").delete().eq("id", id);
+      setSavedSearches((s) => s.filter((x) => x.id !== id));
+    } catch (e) { setError("Suchagent konnte nicht gelöscht werden."); }
+  }
+
+  async function applySavedSearch(s) {
+    setQuery(s.query);
+    setCatFilter(s.category);
+    setTypeFilter("biete");
+    await supabase.from("saved_searches").update({ last_seen_at: new Date().toISOString() }).eq("id", s.id);
+    setSavedSearches((prev) => prev.map((x) => (x.id === s.id ? { ...x, last_seen_at: new Date().toISOString() } : x)));
+    if (window.location.hash) window.location.hash = "";
+    setTimeout(() => {
+      const el = document.getElementById("angebote");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }, 60);
+  }
+
+  function logRecentSearch(term) {
+    const t = term.trim();
+    if (t.length < 2) return;
+    setRecentSearches((prev) => {
+      const next = [t, ...prev.filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, 6);
+      try { localStorage.setItem("nomo_recent_searches", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
   }
 
   function viewListingOnBoard(item) {
@@ -1254,19 +1416,48 @@ export default function App() {
     } finally { setReplySendingKey(null); }
   }
 
-  const visible = listings.filter((l) => {
-    if (l.status === "vergeben") return false;
-    const matchesType = (l.listing_type || "biete") === typeFilter;
-    const matchesCat = catFilter === "alle" || l.category === catFilter;
-    const isPhysical = catInfo(l.category).physical;
-    const matchesShip =
-      shipFilter === "alle" || !isPhysical ||
-      (shipFilter === "versand" && l.ships !== false) ||
-      (shipFilter === "abholung" && l.ships === false);
-    const q = query.trim().toLowerCase();
-    const matchesQuery = !q || l.title.toLowerCase().includes(q) || l.description.toLowerCase().includes(q);
-    return matchesType && matchesCat && matchesShip && matchesQuery;
-  });
+  const visible = listings
+    .filter((l) => {
+      if (l.status === "vergeben") return false;
+      const matchesType = (l.listing_type || "biete") === typeFilter;
+      const matchesCat = catFilter === "alle" || l.category === catFilter;
+      const isPhysical = catInfo(l.category).physical;
+      const matchesShip =
+        shipFilter === "alle" || !isPhysical ||
+        (shipFilter === "versand" && l.ships !== false) ||
+        (shipFilter === "abholung" && l.ships === false);
+      const q = query.trim().toLowerCase();
+      const matchesQuery = !q || l.title.toLowerCase().includes(q) || l.description.toLowerCase().includes(q);
+      const min = priceMin === "" ? null : Number(priceMin);
+      const max = priceMax === "" ? null : Number(priceMax);
+      const matchesPrice = (min === null || l.price >= min) && (max === null || l.price <= max);
+      return matchesType && matchesCat && matchesShip && matchesQuery && matchesPrice;
+    })
+    .sort((a, b) => {
+      if (sortBy === "preis_auf") return a.price - b.price;
+      if (sortBy === "preis_ab") return b.price - a.price;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+  const savedSearchesWithCounts = useMemo(() => {
+    return savedSearches.map((s) => {
+      const count = listings.filter((l) => {
+        if (l.status === "vergeben") return false;
+        if (new Date(l.created_at) <= new Date(s.last_seen_at)) return false;
+        const matchesCat = s.category === "alle" || l.category === s.category;
+        const q = (s.query || "").trim().toLowerCase();
+        const matchesQuery = !q || l.title.toLowerCase().includes(q) || l.description.toLowerCase().includes(q);
+        return matchesCat && matchesQuery;
+      }).length;
+      return { ...s, newCount: count };
+    });
+  }, [savedSearches, listings]);
+  const totalNewSearchMatches = useMemo(() => savedSearchesWithCounts.reduce((sum, s) => sum + s.newCount, 0), [savedSearchesWithCounts]);
+
+  const myFavoriteListings = useMemo(() => {
+    const ids = new Set(favorites.map((f) => f.item_id));
+    return listings.filter((l) => ids.has(l.id));
+  }, [favorites, listings]);
 
   const myCompletedListings = useMemo(() => {
     if (!session) return [];
@@ -1310,7 +1501,7 @@ export default function App() {
               <b>{profile ? profile.display_name : session.user.email}</b>
               {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
               {!profile && <span style={styles.authError}>Profil konnte nicht geladen werden</span>}
-              {profile && <button style={styles.logoutLink} onClick={() => { window.location.hash = "profil"; }}>profil</button>}
+              {profile && <button style={styles.logoutLink} onClick={() => { window.location.hash = "profil"; }}>profil{totalNewSearchMatches > 0 ? ` (${totalNewSearchMatches})` : ""}</button>}
               <button style={styles.logoutLink} onClick={handleLogout}>abmelden</button>
             </span>
           ) : (
@@ -1326,7 +1517,7 @@ export default function App() {
           incomingRequests={incomingRequests} outgoingRequests={outgoingRequests} onAcceptRequest={acceptPurchaseRequest} onDeclineRequest={declinePurchaseRequest} requestActionId={requestActionId}
         />
       ) : page === "profil" && session && profile ? (
-        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} />
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} />
       ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
@@ -1455,6 +1646,33 @@ export default function App() {
 
         <input className="mc-input" style={styles.searchInput} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen, z. B. Bohrmaschine, Nachhilfe, Aquarium…" />
 
+        {recentSearches.length > 0 && !query && (
+          <div style={styles.recentSearchRow}>
+            <span style={styles.recentSearchLabel}>Zuletzt gesucht:</span>
+            {recentSearches.map((t) => (
+              <button key={t} style={styles.recentSearchChip} onClick={() => setQuery(t)}>{t}</button>
+            ))}
+          </div>
+        )}
+
+        {session && (
+          <button style={styles.saveSearchLink} disabled={savingSearch} onClick={saveCurrentSearch}>
+            {savingSearch ? "wird gespeichert…" : "🔔 Als Suchagent speichern"}
+          </button>
+        )}
+
+        <div style={styles.filterLabel}>Sortierung & Preis (in {CURRENCY})</div>
+        <div style={styles.sortRow}>
+          <select className="mc-input" style={{ ...styles.input, maxWidth: 200 }} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="neu">Neueste zuerst</option>
+            <option value="preis_auf">Preis aufsteigend</option>
+            <option value="preis_ab">Preis absteigend</option>
+          </select>
+          <input className="mc-input" style={{ ...styles.input, maxWidth: 100 }} type="number" min="0" placeholder="von" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
+          <span style={{ color: COLORS.mossDark }}>–</span>
+          <input className="mc-input" style={{ ...styles.input, maxWidth: 100 }} type="number" min="0" placeholder="bis" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
+        </div>
+
         <div style={styles.filterLabel}>Kategorie</div>
         <div style={styles.tabs}>
           {["alle", ...CATS.map((c) => c.id)].map((f) => (
@@ -1556,21 +1774,24 @@ export default function App() {
               </label>
             )}
             <label style={styles.label}>
-              Foto (optional)
+              Fotos (optional, bis zu 5)
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 className="mc-input"
                 style={styles.input}
                 onChange={(e) => {
-                  const file = e.target.files[0] || null;
-                  setImageFile(file);
-                  setImagePreview(file ? URL.createObjectURL(file) : null);
+                  const files = Array.from(e.target.files || []).slice(0, 5);
+                  setImageFiles(files);
+                  setImagePreviews(files.map((f) => URL.createObjectURL(f)));
                 }}
               />
             </label>
-            {imagePreview && (
-              <img src={imagePreview} alt="Vorschau" style={styles.imagePreview} />
+            {imagePreviews.length > 0 && (
+              <div style={styles.imagePreviewRow}>
+                {imagePreviews.map((src, i) => <img key={i} src={src} alt="Vorschau" style={styles.imagePreviewThumb} />)}
+              </div>
             )}
             <label style={styles.label}>
               Standort
@@ -1615,6 +1836,9 @@ export default function App() {
                     onToggleReportForm={toggleReportForm}
                     onSubmitReport={submitContentReport}
                     reportSubmitting={reportSubmittingId === item.id}
+                    isFavorited={favorites.some((f) => f.item_id === item.id)}
+                    onToggleFavorite={toggleFavorite}
+                    favoriteBusy={favoriteBusyId === item.id}
                   />
                 </div>
               );
@@ -1681,6 +1905,7 @@ const styles = {
   completedImg: { width: 48, height: 48, objectFit: "cover", borderRadius: 6, flexShrink: 0 },
   completedTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontWeight: 600 },
   completedMeta: { fontSize: 12.5, color: COLORS.mossDark, marginTop: 2 },
+  newMatchBadge: { marginLeft: 8, fontFamily: "'Courier Prime', monospace", fontSize: 10.5, background: COLORS.rust, color: "#fff", borderRadius: 20, padding: "2px 8px" },
   convBox: { border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: 12, marginBottom: 12 },
   convHead: { fontSize: 12.5, color: COLORS.mossDark, marginBottom: 8, fontFamily: "'Courier Prime', monospace" },
   convMessages: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 },
@@ -1707,6 +1932,11 @@ const styles = {
   boardHead: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14, marginBottom: 18 },
   boardTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 30, fontWeight: 600, margin: 0 },
   searchInput: { width: "100%", fontFamily: "'EB Garamond', serif", fontSize: 15, padding: "12px 14px", border: `1.5px solid ${COLORS.ink}`, borderRadius: 6, background: "#fff", marginBottom: 20 },
+  recentSearchRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: -12, marginBottom: 16 },
+  recentSearchLabel: { fontFamily: "'Courier Prime', monospace", fontSize: 11, color: COLORS.mossDark },
+  recentSearchChip: { fontFamily: "'Courier Prime', monospace", fontSize: 11.5, background: "#fff", border: `1px solid ${COLORS.stone}`, borderRadius: 20, padding: "3px 10px", cursor: "pointer", color: COLORS.mossDark },
+  saveSearchLink: { display: "block", marginBottom: 16, background: "none", border: "none", padding: 0, fontFamily: "'Courier Prime', monospace", fontSize: 12, color: COLORS.moss, textDecoration: "underline", cursor: "pointer" },
+  sortRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 20 },
   filterLabel: { fontFamily: "'Courier Prime', monospace", fontSize: 11, letterSpacing: "0.1em", color: COLORS.mossDark, marginBottom: 8 },
   tabs: { display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" },
   tab: { fontFamily: "'Courier Prime', monospace", fontSize: 13, padding: "8px 14px", borderRadius: 20, border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer" },
@@ -1716,7 +1946,8 @@ const styles = {
   label: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 500, flex: 1, minWidth: 180 },
   input: { fontFamily: "'EB Garamond', serif", fontSize: 14, padding: "10px 12px", border: `1.5px solid ${COLORS.stone}`, borderRadius: 5, background: COLORS.paper },
   hobbyHint: { fontSize: 12.5, background: COLORS.paper, border: `1px dashed ${COLORS.moss}`, borderRadius: 6, padding: "10px 12px", color: COLORS.mossDark },
-  imagePreview: { width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 6, border: `1.5px solid ${COLORS.stone}` },
+  imagePreviewRow: { display: "flex", gap: 8, flexWrap: "wrap" },
+  imagePreviewThumb: { width: 72, height: 72, objectFit: "cover", borderRadius: 4, border: `1.5px solid ${COLORS.stone}` },
   valueHint: { fontSize: 12.5, color: COLORS.mossDark, lineHeight: 1.5, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "10px 12px" },
   primaryBtn: { fontFamily: "'Courier Prime', monospace", fontWeight: 500, fontSize: 14, background: COLORS.lime, color: COLORS.ink, border: `2px solid ${COLORS.ink}`, borderRadius: 5, padding: "10px 18px", cursor: "pointer", alignSelf: "flex-start" },
   smallBtn: { marginTop: 8, fontFamily: "'Courier Prime', monospace", fontSize: 12.5, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 5, padding: "7px 14px", cursor: "pointer" },
@@ -1724,6 +1955,10 @@ const styles = {
   ticket: { position: "relative", display: "flex", flexDirection: "column", background: "#FBF5E6", border: `1px solid ${COLORS.stone}`, borderTop: `3px solid ${COLORS.ink}`, borderRadius: 2, overflow: "visible", boxShadow: "0 3px 10px rgba(43,35,24,0.14)", height: "100%", padding: "22px 18px 16px" },
   ticketImage: { width: "100%", height: 140, objectFit: "cover", borderRadius: 2, marginBottom: 10, border: `1px solid ${COLORS.stone}` },
   pin: { position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)", width: 13, height: 13, borderRadius: "50%", background: COLORS.lime, border: `1.5px solid ${COLORS.ink}`, boxShadow: "0 2px 3px rgba(0,0,0,0.3)" },
+  favoriteBtn: { position: "absolute", top: 8, right: 8, background: "rgba(251,245,230,0.9)", border: `1px solid ${COLORS.stone}`, borderRadius: "50%", width: 30, height: 30, fontSize: 16, color: COLORS.rust, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
+  galleryThumbRow: { display: "flex", gap: 6, marginTop: 6, marginBottom: 4 },
+  galleryThumb: { width: 36, height: 36, objectFit: "cover", borderRadius: 3, border: `1.5px solid ${COLORS.stone}`, cursor: "pointer", opacity: 0.7 },
+  galleryThumbActive: { borderColor: COLORS.ink, opacity: 1 },
   ticketFooter: { marginTop: "auto", paddingTop: 12, borderTop: `1px dashed ${COLORS.stone}`, display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 },
   ticketSignature: { fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: 15, color: COLORS.mossDark },
   ticketFooterMeta: { fontFamily: "'Courier Prime', monospace", fontSize: 10.5, color: COLORS.rust },
