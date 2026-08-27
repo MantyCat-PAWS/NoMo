@@ -21,6 +21,7 @@ const LOGO_WORDMARK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZQAAAB4CAY
 const SHOW_AD_BANNER = false; // vorübergehend ausgeblendet, auf true setzen zum Wiedereinschalten
 const CURRENCY_SINGULAR = "NoMo";
 const EURO_TO_PAW = 10;
+const SHIP_DAYS = 5; // Frist in Tagen für die verkaufende Person zum Versenden, sobald eine Anfrage angenommen wurde
 // Trag hier die E-Mail-Adresse ein, mit der ihr euch als Betreiber:in registriert,
 // dann seht ihr das Meldungen-Panel für 1-Stern-Bewertungen.
 const ADMIN_EMAILS = ["regina.paulik@gmx.at"];
@@ -548,6 +549,7 @@ function MessagesPage({
   conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey,
   incomingOffers, outgoingOffers, onAcceptOffer, onDeclineOffer, tradeActionId,
   incomingRequests, outgoingRequests, onAcceptRequest, onDeclineRequest, requestActionId,
+  onMarkShipped, onConfirmReceived, onCancelOverdue,
   onMarkRead, onDeleteMessage, onDeleteConversation, myAddress,
 }) {
   const hasOffers = incomingOffers.length > 0 || outgoingOffers.length > 0;
@@ -565,16 +567,38 @@ function MessagesPage({
               <div style={styles.tradeSubhead}>An dich</div>
               {incomingRequests.map((r) => (
                 <div key={r.id} style={styles.tradeRow}>
-                  <div>
-                    <b>{r.buyer_name}</b> möchte <b>{r.item_title}</b> für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} anfordern.
-                    {r.asking_total != null && r.total_paws < r.asking_total && (
-                      <span style={styles.convListItem}> (Verhandlungsangebot, ursprünglich {r.asking_total} {CURRENCY})</span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                    <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => onAcceptRequest(r)}>Annehmen</button>
-                    <button style={styles.smallBtnGhostInk} disabled={requestActionId === r.id} onClick={() => onDeclineRequest(r)}>Ablehnen</button>
-                  </div>
+                  {r.status === "offen" && (
+                    <>
+                      <div>
+                        <b>{r.buyer_name}</b> möchte <b>{r.item_title}</b> für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} anfordern.
+                        {r.asking_total != null && r.total_paws < r.asking_total && (
+                          <span style={styles.convListItem}> (Verhandlungsangebot, ursprünglich {r.asking_total} {CURRENCY})</span>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                        <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => onAcceptRequest(r)}>Annehmen</button>
+                        <button style={styles.smallBtnGhostInk} disabled={requestActionId === r.id} onClick={() => onDeclineRequest(r)}>Ablehnen</button>
+                      </div>
+                    </>
+                  )}
+                  {r.status === "angenommen" && (
+                    <>
+                      <div>
+                        Angenommen: <b>{r.item_title}</b> an <b>{r.buyer_name}</b> für {r.total_paws} {CURRENCY}. Die {CURRENCY} liegen sicher bereit und werden dir gutgeschrieben, sobald {r.buyer_name} den Erhalt bestätigt.
+                        {r.requires_shipping && r.ship_deadline && (
+                          <> Bitte bis <b>{new Date(r.ship_deadline).toLocaleDateString("de-AT")}</b> versenden.</>
+                        )}
+                      </div>
+                      {r.requires_shipping && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                          <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => onMarkShipped(r)}>Als versendet markieren</button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {r.status === "versendet" && (
+                    <div>Als versendet markiert für <b>{r.item_title}</b> an <b>{r.buyer_name}</b>. Die {CURRENCY} werden gutgeschrieben, sobald der Erhalt bestätigt wird.</div>
+                  )}
                 </div>
               ))}
             </>
@@ -582,12 +606,26 @@ function MessagesPage({
           {outgoingRequests.length > 0 && (
             <>
               <div style={styles.tradeSubhead}>Von dir gestellt</div>
-              {outgoingRequests.map((r) => (
-                <div key={r.id} style={styles.tradeRow}>
-                  Du hast <b>{r.item_title}</b> bei {r.seller_name} für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} angefragt — Status: {r.status}
-                  {r.status === "angenommen" && <> 🎉 Antworte hier auf die zugehörige Unterhaltung, um Adresse/Übergabe zu klären.</>}
-                </div>
-              ))}
+              {outgoingRequests.map((r) => {
+                const overdue = r.status === "angenommen" && r.requires_shipping && r.ship_deadline && new Date(r.ship_deadline) < new Date();
+                return (
+                  <div key={r.id} style={styles.tradeRow}>
+                    Du hast <b>{r.item_title}</b> bei {r.seller_name} für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} angefragt — Status: {r.status}
+                    {r.status === "angenommen" && !r.requires_shipping && <> Deine {CURRENCY} liegen sicher bereit. Bestätige den Erhalt/die Übergabe, sobald alles geklärt ist.</>}
+                    {r.status === "angenommen" && r.requires_shipping && !overdue && r.ship_deadline && <> Deine {CURRENCY} liegen sicher bereit. {r.seller_name} hat bis <b>{new Date(r.ship_deadline).toLocaleDateString("de-AT")}</b> Zeit zum Versenden.</>}
+                    {overdue && <> ⚠️ Die Versandfrist ist abgelaufen und {r.seller_name} hat noch nicht als versendet markiert.</>}
+                    {r.status === "versendet" && <> 📦 Als versendet markiert. Bestätige den Erhalt, sobald es angekommen ist.</>}
+                    {(r.status === "angenommen" || r.status === "versendet") && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                        <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => onConfirmReceived(r)}>Erhalt bestätigen</button>
+                        {overdue && (
+                          <button style={styles.smallBtnGhostInk} disabled={requestActionId === r.id} onClick={() => onCancelOverdue(r)}>Stornieren &amp; {CURRENCY} zurückerhalten</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
@@ -1428,18 +1466,23 @@ export default function App() {
 
   const incomingRequests = useMemo(() => {
     if (!session) return [];
-    return purchaseRequests.filter((r) => r.seller_id === session.user.id && r.status === "offen")
+    return purchaseRequests.filter((r) => r.seller_id === session.user.id && ["offen", "angenommen", "versendet"].includes(r.status))
       .map((r) => {
         const listing = listings.find((l) => l.id === r.item_id);
         const askingTotal = listing ? listing.price + (listing.shipping_paws || 0) : null;
-        return { ...r, buyer_name: profilesById[r.buyer_id]?.display_name, asking_total: askingTotal };
+        const requiresShipping = listing ? (catInfo(listing.category).physical && listing.ships !== false) : false;
+        return { ...r, buyer_name: profilesById[r.buyer_id]?.display_name, asking_total: askingTotal, requires_shipping: requiresShipping };
       });
   }, [purchaseRequests, session, profilesById, listings]);
   const outgoingRequests = useMemo(() => {
     if (!session) return [];
-    return purchaseRequests.filter((r) => r.buyer_id === session.user.id && r.status !== "abgelehnt")
-      .map((r) => ({ ...r, seller_name: profilesById[r.seller_id]?.display_name }));
-  }, [purchaseRequests, session, profilesById]);
+    return purchaseRequests.filter((r) => r.buyer_id === session.user.id && ["offen", "angenommen", "versendet"].includes(r.status))
+      .map((r) => {
+        const listing = listings.find((l) => l.id === r.item_id);
+        const requiresShipping = listing ? (catInfo(listing.category).physical && listing.ships !== false) : false;
+        return { ...r, seller_name: profilesById[r.seller_id]?.display_name, requires_shipping: requiresShipping };
+      });
+  }, [purchaseRequests, session, profilesById, listings]);
   const myOpenRequestItemIds = useMemo(() => {
     if (!session) return new Set();
     return new Set(purchaseRequests.filter((r) => r.buyer_id === session.user.id && r.status === "offen").map((r) => r.item_id));
@@ -1845,26 +1888,28 @@ export default function App() {
     setRequestActionId(req.id);
     setError(null);
     try {
-      const users = {}; // frische Salden holen, damit nichts veraltet ist
       const { data: buyerRow } = await supabase.from("profiles").select("balance").eq("id", req.buyer_id).single();
-      const { data: sellerRow } = await supabase.from("profiles").select("balance").eq("id", req.seller_id).single();
       if (!buyerRow || (buyerRow.balance || 0) < req.total_paws) {
         setError("Diese Person hat nicht mehr genug " + CURRENCY + ", die Anfrage kann nicht angenommen werden.");
         setRequestActionId(null);
         return;
       }
 
-      const { data: itemRow } = await supabase.from("listings").select("status, shipping_paws").eq("id", req.item_id).single();
+      const { data: itemRow } = await supabase.from("listings").select("status, shipping_paws, category, ships").eq("id", req.item_id).single();
       if (!itemRow || itemRow.status !== "verfuegbar") {
         setError("Dieses Angebot ist nicht mehr verfügbar.");
         setRequestActionId(null);
         return;
       }
 
+      const requiresShipping = catInfo(itemRow.category).physical && itemRow.ships !== false;
+      const shipDeadline = requiresShipping ? new Date(Date.now() + SHIP_DAYS * 86400000).toISOString() : null;
+
+      // NoMo's werden dem Käufer jetzt abgezogen, aber der verkaufenden Person erst
+      // gutgeschrieben, wenn der Erhalt bestätigt wurde (Käuferschutz/Treuhand).
       await supabase.from("profiles").update({ balance: buyerRow.balance - req.total_paws }).eq("id", req.buyer_id);
-      await supabase.from("profiles").update({ balance: (sellerRow?.balance || 0) + req.total_paws }).eq("id", req.seller_id);
       await supabase.from("listings").update({ status: "vergeben", buyer_id: req.buyer_id }).eq("id", req.item_id);
-      await supabase.from("purchase_requests").update({ status: "angenommen" }).eq("id", req.id);
+      await supabase.from("purchase_requests").update({ status: "angenommen", ship_deadline: shipDeadline }).eq("id", req.id);
 
       const otherOpen = purchaseRequests.filter((r) => r.item_id === req.item_id && r.id !== req.id && r.status === "offen");
       for (const r of otherOpen) {
@@ -1875,6 +1920,48 @@ export default function App() {
       if (session) loadOwnProfile(session.user.id);
     } catch (e) {
       setError("Anfrage konnte nicht angenommen werden.");
+    } finally { setRequestActionId(null); }
+  }
+
+  async function markRequestShipped(req) {
+    setRequestActionId(req.id);
+    setError(null);
+    try {
+      const { error: updErr } = await supabase.from("purchase_requests").update({ status: "versendet", shipped_at: new Date().toISOString() }).eq("id", req.id);
+      if (updErr) throw updErr;
+      fetchAll();
+    } catch (e) {
+      setError("Konnte nicht als versendet markiert werden.");
+    } finally { setRequestActionId(null); }
+  }
+
+  async function confirmRequestReceived(req) {
+    setRequestActionId(req.id);
+    setError(null);
+    try {
+      const { data: sellerRow } = await supabase.from("profiles").select("balance").eq("id", req.seller_id).single();
+      await supabase.from("profiles").update({ balance: (sellerRow?.balance || 0) + req.total_paws }).eq("id", req.seller_id);
+      const { error: updErr } = await supabase.from("purchase_requests").update({ status: "abgeschlossen", completed_at: new Date().toISOString() }).eq("id", req.id);
+      if (updErr) throw updErr;
+      fetchAll();
+    } catch (e) {
+      setError("Erhalt konnte nicht bestätigt werden.");
+    } finally { setRequestActionId(null); }
+  }
+
+  async function cancelOverdueRequest(req) {
+    setRequestActionId(req.id);
+    setError(null);
+    try {
+      const { data: buyerRow } = await supabase.from("profiles").select("balance").eq("id", req.buyer_id).single();
+      await supabase.from("profiles").update({ balance: (buyerRow?.balance || 0) + req.total_paws }).eq("id", req.buyer_id);
+      await supabase.from("listings").update({ status: "verfuegbar", buyer_id: null }).eq("id", req.item_id);
+      const { error: updErr } = await supabase.from("purchase_requests").update({ status: "storniert", cancelled_at: new Date().toISOString() }).eq("id", req.id);
+      if (updErr) throw updErr;
+      fetchAll();
+      if (session) loadOwnProfile(session.user.id);
+    } catch (e) {
+      setError("Konnte nicht storniert werden.");
     } finally { setRequestActionId(null); }
   }
 
@@ -2147,7 +2234,7 @@ export default function App() {
               )}
               {profile && (
                 <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; }}>
-                  Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.length})` : ""}
+                  Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length})` : ""}
                 </button>
               )}
               {profile?.avatar && avatarSrc(profile.avatar) && <img src={avatarSrc(profile.avatar)} alt="" style={styles.avatarImgTiny} />}
@@ -2168,6 +2255,7 @@ export default function App() {
           conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey}
           incomingOffers={incomingOffers} outgoingOffers={outgoingOffers} onAcceptOffer={acceptTradeOffer} onDeclineOffer={declineTradeOffer} tradeActionId={tradeActionId}
           incomingRequests={incomingRequests} outgoingRequests={outgoingRequests} onAcceptRequest={acceptPurchaseRequest} onDeclineRequest={declinePurchaseRequest} requestActionId={requestActionId}
+          onMarkShipped={markRequestShipped} onConfirmReceived={confirmRequestReceived} onCancelOverdue={cancelOverdueRequest}
           onMarkRead={markConversationRead} onDeleteMessage={deleteMessage} onDeleteConversation={deleteConversation} myAddress={myAddress}
         />
       ) : page === "profil" && session && profile ? (
