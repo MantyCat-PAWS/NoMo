@@ -72,11 +72,12 @@ const CATS = [
   { id: "multimedia_gaming", label: "Multimedia & Gaming", icon: "🎮", physical: true },
   { id: "haus_garten", label: "Haus & Garten", icon: "🏡", physical: true },
   { id: "moebel", label: "Möbel & Wohnen", icon: "🛋️", physical: true },
+  { id: "wohnen", label: "Unterkünfte & Wohnen", icon: "🔑", physical: false },
   { id: "werkzeug_bau", label: "Werkzeug & Bau", icon: "🔧", physical: true },
   { id: "freizeit_hobby", label: "Freizeit & Hobby", icon: "🎨", physical: true },
   { id: "sport", label: "Sport & Outdoor", icon: "⚽", physical: true },
   { id: "kind_baby", label: "Kind & Baby", icon: "🍼", physical: true },
-  { id: "tiere", label: "Tiere & Tierbedarf", icon: "🐾", physical: true },
+  { id: "tiere", label: "Tierbedarf", icon: "🐾", physical: true },
   { id: "musik_buecher", label: "Musik, Filme & Bücher", icon: "📚", physical: true },
   { id: "sammeln", label: "Sammeln & Antiquitäten", icon: "🏺", physical: true },
   { id: "sonstiges", label: "Sonstiges", icon: "📦", physical: true },
@@ -249,7 +250,7 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
         </div>
       )}
       <div style={styles.badgeRow}>
-        <span style={styles.catBadge}>{info.icon} {info.label}</span>
+        <span style={styles.catBadge}><span style={styles.grayIcon}>{info.icon}</span> {info.label}</span>
         {info.physical && (
           <span style={item.ships === false ? styles.pickupBadge : styles.shipBadge}>
             {item.ships === false ? "Nur Abholung" : "Versand möglich"}
@@ -261,9 +262,6 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
       </div>
       <h3 style={styles.ticketTitle}>{item.title}</h3>
       <p style={styles.ticketDesc}>{item.description}</p>
-      {item.category === "dienstleistung" && item.hours && (
-        <div style={styles.metaLine}>{item.hours} Std. à {item.hourly_rate_euro} €</div>
-      )}
       {isSuche ? (
         item.max_offer_paws > 0 && (
           <div style={styles.priceRow}>
@@ -277,7 +275,7 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
           <div style={styles.priceRow}>
             <PawCoin size={20} />
             <span style={styles.priceValue}>{item.price}</span>
-            <span style={styles.priceLabel}>{item.price === 1 ? CURRENCY_SINGULAR : CURRENCY}</span>
+            <span style={styles.priceLabel}>{item.price === 1 ? CURRENCY_SINGULAR : CURRENCY}{item.category === "dienstleistung" ? " pro Stunde" : ""}</span>
           </div>
           {info.physical && item.shipping_paws > 0 && (
             <div style={styles.shippingLine}>+ {item.shipping_paws} {item.shipping_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} Versand</div>
@@ -291,7 +289,7 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
         <div style={styles.actionRow}>
           <button style={{ ...styles.requestBtn, ...(canAfford && !alreadyRequested ? {} : styles.requestBtnDisabled) }}
             onClick={() => onRequest(item)} disabled={requesting || !canAfford || alreadyRequested}>
-            {requesting ? "einen Moment…" : alreadyRequested ? "Anfrage gesendet, warte auf Antwort" : canAfford ? `Für ${total} ${total === 1 ? CURRENCY_SINGULAR : CURRENCY} anfragen` : "zu wenig " + CURRENCY}
+            {requesting ? "einen Moment…" : alreadyRequested ? "Anfrage gesendet, warte auf Antwort" : canAfford ? `Für ${total} ${total === 1 ? CURRENCY_SINGULAR : CURRENCY}${item.category === "dienstleistung" ? "/Std." : ""} anfragen` : "zu wenig " + CURRENCY}
           </button>
           <div style={{ display: "flex", gap: 6 }}>
             <button style={styles.tradeToggleBtn} onClick={() => onToggleTradeForm(item.id)}>
@@ -345,7 +343,7 @@ function ProfileEditor({ profile, onSave, saving }) {
       <div style={styles.label}>Avatar</div>
       <div style={styles.avatarRow}>
         {AVATAR_IMAGES.map((src, i) => (
-          <button key={i} type="button" onClick={() => setAvatar(String(i))} style={{ ...styles.avatarImgBtn, ...(avatar === String(i) ? styles.avatarImgBtnActive : {}) }}>
+          <button key={i} type="button" className="mc-avatar-btn" onClick={() => setAvatar(String(i))} style={{ ...styles.avatarImgBtn, ...(avatar === String(i) ? styles.avatarImgBtnActive : {}) }}>
             <img src={src} alt={`Avatar ${i + 1}`} style={styles.avatarImgThumb} />
           </button>
         ))}
@@ -814,7 +812,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+  const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -1068,14 +1066,14 @@ export default function App() {
 
   const computedPawsPreview = useMemo(() => {
     if (form.category === "dienstleistung") {
-      const rate = Number(form.hourlyRateEuro); const hrs = Number(form.hours);
-      if (!rate || !hrs) return null;
-      return euroToPaws(rate * hrs);
+      const rate = Number(form.pawsPerHour);
+      if (!rate) return null;
+      return Math.round(rate);
     }
     const euro = Number(form.priceEuro);
     if (!euro) return null;
     return euroToPaws(euro);
-  }, [form.category, form.hourlyRateEuro, form.hours, form.priceEuro]);
+  }, [form.category, form.pawsPerHour, form.priceEuro]);
 
   const shippingPreview = useMemo(() => {
     if (!catInfo(form.category).physical) return 0;
@@ -1091,10 +1089,9 @@ export default function App() {
     let price = 0, extra = {}, shippingPaws = 0;
     if (form.listingType === "biete") {
       if (form.category === "dienstleistung") {
-        const rate = Number(form.hourlyRateEuro); const hrs = Number(form.hours);
-        if (!rate || !hrs) { setError("Bitte Stundensatz und geschätzte Stunden angeben."); return; }
-        price = euroToPaws(rate * hrs);
-        extra = { hourly_rate_euro: rate, hours: hrs };
+        const rate = Number(form.pawsPerHour);
+        if (!rate || rate <= 0) { setError("Bitte einen Preis pro Stunde in " + CURRENCY + " angeben."); return; }
+        price = Math.round(rate);
       } else {
         const euro = Number(form.priceEuro);
         if (!euro) { setError("Bitte einen Preis in Euro angeben."); return; }
@@ -1134,7 +1131,7 @@ export default function App() {
       });
       if (insErr) throw insErr;
 
-      setForm({ title: "", category: "sache", description: "", priceEuro: "", hourlyRateEuro: "", hours: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+      setForm({ title: "", category: "sache", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
       setImageFiles([]);
       setImagePreviews([]);
       setShowForm(false);
@@ -1506,6 +1503,8 @@ export default function App() {
         .mc-btn:focus-visible, .mc-input:focus-visible, .mc-tab:focus-visible { outline: 3px solid ${COLORS.lime}; outline-offset: 2px; }
         .mc-ticket { transition: transform .2s ease, box-shadow .2s ease; }
         .mc-ticket:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(33,28,20,0.06), 0 16px 32px rgba(33,28,20,0.12); }
+        .mc-avatar-btn { transition: transform .15s ease; position: relative; z-index: 1; }
+        .mc-avatar-btn:hover, .mc-avatar-btn:focus-visible { transform: scale(1.8); z-index: 3; }
         @media (prefers-reduced-motion: reduce) { .mc-btn, .mc-ticket { transition: none !important; } .mc-btn:hover, .mc-ticket:hover { transform: none !important; } }
         .mc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 26px; }
         @media (max-width: 560px) { .mc-hero-title { font-size: 38px !important; } }
@@ -1718,7 +1717,7 @@ export default function App() {
               <div style={styles.filterLabel}>Kategorie</div>
               <div style={styles.sidebarTabsCol}>
                 {["alle", ...CATS.map((c) => c.id)].map((f) => (
-                  <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.sidebarTab, ...(catFilter === f ? styles.sidebarTabActive : {}) }}>{f === "alle" ? "Alle" : `${catInfo(f).icon} ${catInfo(f).label}`}</button>
+                  <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.sidebarTab, ...(catFilter === f ? styles.sidebarTabActive : {}) }}>{f === "alle" ? "Alle" : <><span style={styles.grayIcon}>{catInfo(f).icon}</span> {catInfo(f).label}</>}</button>
                 ))}
               </div>
             </div>
@@ -1776,16 +1775,10 @@ export default function App() {
             {form.listingType === "biete" ? (
               <>
                 {form.category === "dienstleistung" ? (
-                  <div style={styles.formRow}>
-                    <label style={styles.label}>
-                      Stundensatz in Euro
-                      <input className="mc-input" style={styles.input} type="number" min="0" value={form.hourlyRateEuro} onChange={(e) => setForm({ ...form, hourlyRateEuro: e.target.value })} placeholder="z. B. 25" />
-                    </label>
-                    <label style={styles.label}>
-                      Geschätzte Stunden
-                      <input className="mc-input" style={styles.input} type="number" min="0" step="0.5" value={form.hours} onChange={(e) => setForm({ ...form, hours: e.target.value })} placeholder="z. B. 2" />
-                    </label>
-                  </div>
+                  <label style={styles.label}>
+                    Preis pro Stunde in {CURRENCY}
+                    <input className="mc-input" style={styles.input} type="number" min="0" value={form.pawsPerHour} onChange={(e) => setForm({ ...form, pawsPerHour: e.target.value })} placeholder="z. B. 8" />
+                  </label>
                 ) : (
                   <label style={styles.label}>
                     Preis in Euro
@@ -1809,8 +1802,12 @@ export default function App() {
                   </>
                 )}
                 <div style={styles.valueHint}>
-                  Faustregel: 1 {CURRENCY_SINGULAR} = {EURO_TO_PAW} €.
-                  {computedPawsPreview !== null && <> Das ergibt aktuell <b>{computedPawsPreview} {computedPawsPreview === 1 ? CURRENCY_SINGULAR : CURRENCY}</b>{shippingPreview > 0 && <> + {shippingPreview} {CURRENCY} Versand</>}.</>}
+                  {form.category === "dienstleistung" ? (
+                    <>Der Preis pro Stunde wird direkt in {CURRENCY} festgelegt, keine Euro-Umrechnung nötig.</>
+                  ) : (
+                    <>Faustregel: 1 {CURRENCY_SINGULAR} = {EURO_TO_PAW} €.</>
+                  )}
+                  {computedPawsPreview !== null && form.category !== "dienstleistung" && <> Das ergibt aktuell <b>{computedPawsPreview} {computedPawsPreview === 1 ? CURRENCY_SINGULAR : CURRENCY}</b>{shippingPreview > 0 && <> + {shippingPreview} {CURRENCY} Versand</>}.</>}
                   {categoryAverage !== null && <> Ähnliche Angebote in "{catInfo(form.category).label}" liegen im Schnitt bei {categoryAverage} {categoryAverage === 1 ? CURRENCY_SINGULAR : CURRENCY}.</>}
                 </div>
               </>
@@ -2026,6 +2023,7 @@ const styles = {
   ticketFooterMeta: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted },
   badgeRow: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
   catBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.muted, background: COLORS.paper, padding: "4px 9px", borderRadius: 20 },
+  grayIcon: { filter: "grayscale(1) contrast(0.85) brightness(1.15)", opacity: 0.85 },
   searchBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 10.5, letterSpacing: "0.03em", color: "#fff", background: COLORS.rust, padding: "4px 9px", borderRadius: 20 },
   typeToggleRow: { display: "flex", gap: 8, marginBottom: 4 },
   typeToggleBtn: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "10px 12px", border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer", borderRadius: 5 },
