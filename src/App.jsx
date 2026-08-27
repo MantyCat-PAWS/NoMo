@@ -327,7 +327,9 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
       <div style={styles.ticketFooter}>
         <span style={styles.ticketSignature}>
           {item.owner_avatar && avatarSrc(item.owner_avatar) && <img src={avatarSrc(item.owner_avatar)} alt="" style={styles.avatarImgTiny} />}
-          {item.owner_display_name}
+          <span style={item.owner_verified ? styles.ownerNameVerified : styles.ownerNameUnverified} title={item.owner_verified ? "Ausweis-verifiziertes Profil" : "Nicht verifiziertes Profil"}>
+            {item.owner_display_name}
+          </span>
           {item.owner_verified && <span style={styles.verifiedBadge} title="Ausweis verifiziert">✓</span>}
         </span>
         <span style={styles.ticketFooterMeta}>{item.location} · #{item.code}</span>
@@ -403,7 +405,7 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
     <div>
       {conversations.map((conv) => (
         <div key={conv.key} style={styles.convBox}>
-          <div style={styles.convHead}>Mit <b>{conv.partnerName}</b>{conv.itemTitle ? <> zu "{conv.itemTitle}"</> : ""}</div>
+          <div style={styles.convHead}>Mit <b style={conv.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{conv.partnerName}</b>{conv.itemTitle ? <> zu "{conv.itemTitle}"</> : ""}</div>
           <div style={styles.convMessages}>
             {conv.messages.map((m) => (
               <div key={m.id} style={{ ...styles.bubble, ...(m.from_id === userId ? styles.bubbleMine : styles.bubbleTheirs) }}>
@@ -1045,7 +1047,7 @@ export default function App() {
       const key = m.conv_key;
       if (!groups[key]) {
         const partnerId = m.from_id === session.user.id ? m.to_id : m.from_id;
-        groups[key] = { key, partnerId, partnerName: profilesById[partnerId]?.display_name || "?", itemId: m.item_id, itemTitle: m.item_title, messages: [] };
+        groups[key] = { key, partnerId, partnerName: profilesById[partnerId]?.display_name || "?", partnerVerified: profilesById[partnerId]?.verified || false, itemId: m.item_id, itemTitle: m.item_title, messages: [] };
       }
       groups[key].messages.push(m);
     });
@@ -2147,6 +2149,8 @@ const styles = {
   galleryThumbActive: { borderColor: COLORS.ink, opacity: 1 },
   ticketFooter: { marginTop: "auto", paddingTop: 12, borderTop: `1px solid ${COLORS.hairline}`, display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 },
   ticketSignature: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 13, color: COLORS.ink },
+  ownerNameVerified: { color: COLORS.lime, fontWeight: 600 },
+  ownerNameUnverified: { color: COLORS.muted },
   verifiedBadge: { marginLeft: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 15, height: 15, borderRadius: "50%", background: COLORS.lime, color: "#fff", fontSize: 10, fontWeight: 700 },
   verifyBox: { marginBottom: 36 },
   verifyPending: { fontSize: 13, color: COLORS.muted, fontStyle: "italic" },
