@@ -182,6 +182,35 @@ function TradeOfferForm({ item, myListings, onSubmit, onCancel, submitting }) {
   );
 }
 
+function OfferForm({ item, onSubmit, onCancel, submitting, onSwitchToTrade }) {
+  const askingTotal = item.price + (item.shipping_paws || 0);
+  const [amount, setAmount] = useState(String(askingTotal));
+  const n = Number(amount);
+  const isLower = n < askingTotal;
+  return (
+    <div style={styles.tradeBox}>
+      <label style={styles.label}>
+        Wie viel {CURRENCY} bietest du?
+        <input className="mc-input" style={styles.input} type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </label>
+      {isLower && n >= 0 && (
+        <p style={{ ...styles.legalP, marginBottom: 0 }}>
+          Das sind {askingTotal - n} {CURRENCY} weniger als der Angebotspreis ({askingTotal} {CURRENCY}) — {item.owner_display_name} kann dein Angebot annehmen oder ablehnen.
+        </p>
+      )}
+      <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+        <button type="button" style={styles.smallBtn} disabled={amount === "" || n < 0 || submitting} onClick={() => onSubmit(item, n)}>
+          {submitting ? "wird gesendet…" : "Anfrage senden"}
+        </button>
+        <button type="button" style={styles.smallBtnGhostInk} onClick={onCancel}>Abbrechen</button>
+        {onSwitchToTrade && (
+          <button type="button" style={styles.smallBtnGhost} onClick={onSwitchToTrade}>Oder lieber direkt tauschen?</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MessageForm({ item, onSubmit, onCancel, submitting }) {
   const [text, setText] = useState("");
   return (
@@ -221,7 +250,7 @@ function ReportForm({ item, onSubmit, onCancel, submitting }) {
   );
 }
 
-function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting, isFavorited, onToggleFavorite, favoriteBusy }) {
+function TicketCard({ item, isMine, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, offerFormOpen, onToggleOfferForm, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting, isFavorited, onToggleFavorite, favoriteBusy }) {
   const info = catInfo(item.category);
   const total = item.price + (item.shipping_paws || 0);
   const isSuche = item.listing_type === "suche";
@@ -294,9 +323,8 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
       )}
       {!isMine && !isSuche && item.status !== "vergeben" && (
         <div style={styles.actionRow}>
-          <button style={{ ...styles.requestBtn, ...(canAfford && !alreadyRequested ? {} : styles.requestBtnDisabled) }}
-            onClick={() => onRequest(item)} disabled={requesting || !canAfford || alreadyRequested}>
-            {requesting ? "einen Moment…" : alreadyRequested ? "Anfrage gesendet, warte auf Antwort" : !canAfford ? "zu wenig " + CURRENCY : total === 0 ? "Kostenlos anfordern" : `Für ${total} ${total === 1 ? CURRENCY_SINGULAR : CURRENCY}${item.category === "dienstleistung" ? "/Std." : ""} anfragen`}
+          <button style={styles.requestBtn} onClick={() => (total === 0 ? onRequest(item, 0) : onToggleOfferForm(item.id))} disabled={alreadyRequested || (total === 0 && requesting)}>
+            {alreadyRequested ? "Anfrage gesendet, warte auf Antwort" : total === 0 ? (requesting ? "einen Moment…" : "Kostenlos anfordern") : offerFormOpen ? "Angebot schließen" : "Angebot machen"}
           </button>
           <div style={{ display: "flex", gap: 6 }}>
             <button style={styles.tradeToggleBtn} onClick={() => onToggleTradeForm(item.id)}>
@@ -314,6 +342,9 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
             {msgFormOpen ? "Nachricht schließen" : "Ich hab das!"}
           </button>
         </div>
+      )}
+      {!isMine && offerFormOpen && (
+        <OfferForm item={item} onSubmit={onRequest} onCancel={() => onToggleOfferForm(item.id)} submitting={requesting} onSwitchToTrade={() => onToggleTradeForm(item.id)} />
       )}
       {!isMine && tradeFormOpen && (
         <TradeOfferForm item={item} myListings={myListings} onSubmit={onSubmitTrade} onCancel={() => onToggleTradeForm(item.id)} submitting={tradeSubmitting} />
@@ -528,7 +559,12 @@ function MessagesPage({
               <div style={styles.tradeSubhead}>An dich</div>
               {incomingRequests.map((r) => (
                 <div key={r.id} style={styles.tradeRow}>
-                  <div><b>{r.buyer_name}</b> möchte <b>{r.item_title}</b> für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} anfordern.</div>
+                  <div>
+                    <b>{r.buyer_name}</b> möchte <b>{r.item_title}</b> für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} anfordern.
+                    {r.asking_total != null && r.total_paws < r.asking_total && (
+                      <span style={styles.convListItem}> (Verhandlungsangebot, ursprünglich {r.asking_total} {CURRENCY})</span>
+                    )}
+                  </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                     <button style={styles.smallBtn} disabled={requestActionId === r.id} onClick={() => onAcceptRequest(r)}>Annehmen</button>
                     <button style={styles.smallBtnGhostInk} disabled={requestActionId === r.id} onClick={() => onDeclineRequest(r)}>Ablehnen</button>
@@ -1171,6 +1207,7 @@ export default function App() {
   const [tradeActionId, setTradeActionId] = useState(null);
   const [msgFormItemId, setMsgFormItemId] = useState(null);
   const [msgSubmittingId, setMsgSubmittingId] = useState(null);
+  const [offerFormItemId, setOfferFormItemId] = useState(null);
 
   const enrichListing = useCallback((row, pMap) => {
     const owner = pMap[row.owner_id] || {};
@@ -1343,8 +1380,12 @@ export default function App() {
   const incomingRequests = useMemo(() => {
     if (!session) return [];
     return purchaseRequests.filter((r) => r.seller_id === session.user.id && r.status === "offen")
-      .map((r) => ({ ...r, buyer_name: profilesById[r.buyer_id]?.display_name }));
-  }, [purchaseRequests, session, profilesById]);
+      .map((r) => {
+        const listing = listings.find((l) => l.id === r.item_id);
+        const askingTotal = listing ? listing.price + (listing.shipping_paws || 0) : null;
+        return { ...r, buyer_name: profilesById[r.buyer_id]?.display_name, asking_total: askingTotal };
+      });
+  }, [purchaseRequests, session, profilesById, listings]);
   const outgoingRequests = useMemo(() => {
     if (!session) return [];
     return purchaseRequests.filter((r) => r.buyer_id === session.user.id && r.status !== "abgelehnt")
@@ -1732,18 +1773,19 @@ export default function App() {
     }, 60);
   }
 
-  async function requestItem(item) {
+  async function requestItem(item, customTotal) {
     if (!session || item.owner_id === session.user.id) return;
+    const total = customTotal != null ? Math.max(0, Math.round(customTotal)) : item.price + (item.shipping_paws || 0);
     setRequestingId(item.id);
     setError(null);
     try {
-      const total = item.price + (item.shipping_paws || 0);
-      if ((profile?.balance || 0) < total) { setError("Du hast nicht genug " + CURRENCY + " für dieses Angebot inkl. Versand."); setRequestingId(null); return; }
+      if ((profile?.balance || 0) < total) { setError("Du hast nicht genug " + CURRENCY + " für dieses Angebot."); setRequestingId(null); return; }
 
       const { error: insErr } = await supabase.from("purchase_requests").insert({
         item_id: item.id, item_title: item.title, buyer_id: session.user.id, seller_id: item.owner_id, total_paws: total,
       });
       if (insErr) throw insErr;
+      setOfferFormItemId(null);
       fetchAll();
     } catch (e) {
       setError("Anfrage konnte nicht gesendet werden. Bitte nochmal versuchen.");
@@ -1872,8 +1914,9 @@ export default function App() {
     } finally { setReportActionId(null); }
   }
 
-  function toggleTradeForm(id) { setTradeFormItemId((c) => (c === id ? null : id)); setMsgFormItemId(null); }
-  function toggleMsgForm(id) { setMsgFormItemId((c) => (c === id ? null : id)); setTradeFormItemId(null); }
+  function toggleTradeForm(id) { setTradeFormItemId((c) => (c === id ? null : id)); setMsgFormItemId(null); setOfferFormItemId(null); }
+  function toggleMsgForm(id) { setMsgFormItemId((c) => (c === id ? null : id)); setTradeFormItemId(null); setOfferFormItemId(null); }
+  function toggleOfferForm(id) { setOfferFormItemId((c) => (c === id ? null : id)); setTradeFormItemId(null); setMsgFormItemId(null); }
 
   async function submitTradeOffer(targetItem, offeredListingId, message) {
     if (!session) return;
@@ -2370,7 +2413,6 @@ export default function App() {
                       <TicketCard
                         item={item}
                         isMine={session && item.owner_id === session.user.id}
-                        canAfford={session && profile && profile.balance >= item.price + (item.shipping_paws || 0)}
                         alreadyRequested={myOpenRequestItemIds.has(item.id)}
                         onDelete={deleteListing}
                         onRequest={requestItem}
@@ -2387,6 +2429,8 @@ export default function App() {
                         onToggleMsgForm={toggleMsgForm}
                         onSubmitMessage={submitMessage}
                         msgSubmitting={msgSubmittingId === item.id}
+                        offerFormOpen={offerFormItemId === item.id}
+                        onToggleOfferForm={toggleOfferForm}
                         reportFormOpen={reportFormItemId === item.id}
                         onToggleReportForm={toggleReportForm}
                         onSubmitReport={submitContentReport}
