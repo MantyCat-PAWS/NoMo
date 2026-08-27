@@ -467,7 +467,7 @@ function ProfileEditor({ profile, onSave, saving }) {
   );
 }
 
-function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey, onMarkRead, onDeleteMessage, onDeleteConversation }) {
+function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey, onMarkRead, onDeleteMessage, onDeleteConversation, myAddress }) {
   const [selectedKey, setSelectedKey] = useState(null);
   if (conversations.length === 0) return <div style={styles.inboxEmpty}>Noch keine Nachrichten.</div>;
 
@@ -510,6 +510,12 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
             {replySendingKey === selected.key ? "…" : "Senden"}
           </button>
         </div>
+        {myAddress && myAddress.trim() && (
+          <button type="button" style={styles.addressInsertBtn} onClick={() => {
+            const current = (replyDrafts[selected.key] || "").trim();
+            onDraftChange(selected.key, current ? current + "\n\n" + myAddress : myAddress);
+          }}>📮 Meine Adresse einfügen</button>
+        )}
       </div>
     );
   }
@@ -542,7 +548,7 @@ function MessagesPage({
   conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey,
   incomingOffers, outgoingOffers, onAcceptOffer, onDeclineOffer, tradeActionId,
   incomingRequests, outgoingRequests, onAcceptRequest, onDeclineRequest, requestActionId,
-  onMarkRead, onDeleteMessage, onDeleteConversation,
+  onMarkRead, onDeleteMessage, onDeleteConversation, myAddress,
 }) {
   const hasOffers = incomingOffers.length > 0 || outgoingOffers.length > 0;
   const hasRequests = incomingRequests.length > 0 || outgoingRequests.length > 0;
@@ -616,7 +622,7 @@ function MessagesPage({
       )}
 
       {(hasOffers || hasRequests) && <h2 style={styles.profileSectionTitle}>Unterhaltungen</h2>}
-      <Inbox conversations={conversations} userId={userId} replyDrafts={replyDrafts} onDraftChange={onDraftChange} onReply={onReply} replySendingKey={replySendingKey} onMarkRead={onMarkRead} onDeleteMessage={onDeleteMessage} onDeleteConversation={onDeleteConversation} />
+      <Inbox conversations={conversations} userId={userId} replyDrafts={replyDrafts} onDraftChange={onDraftChange} onReply={onReply} replySendingKey={replySendingKey} onMarkRead={onMarkRead} onDeleteMessage={onDeleteMessage} onDeleteConversation={onDeleteConversation} myAddress={myAddress} />
     </div>
   );
 }
@@ -951,7 +957,26 @@ function PublicProfilePage({ userId, profilesById, listings, onViewListing }) {
   );
 }
 
-function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, onEditListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading }) {
+function AddressEditor({ address, onSave, saving }) {
+  const [value, setValue] = useState(address || "");
+  useEffect(() => { setValue(address || ""); }, [address]);
+  return (
+    <div style={styles.verifyBox}>
+      <h2 style={styles.profileSectionTitle}>Meine Lieferadresse</h2>
+      <p style={styles.legalP}>
+        Einmal hier speichern, dann kannst du sie später in jeder Unterhaltung mit einem Klick einfügen, statt sie jedes Mal neu abzutippen.
+        Sie ist privat und wird nur dann sichtbar, wenn du sie in einem Chat tatsächlich versendest.
+      </p>
+      <textarea className="mc-input" style={{ ...styles.input, minHeight: 80, resize: "vertical" }} value={value} onChange={(e) => setValue(e.target.value)}
+        placeholder={"Vorname Nachname\nStraße Hausnummer\nPLZ Ort"} />
+      <button type="button" className="mc-btn" style={{ ...styles.primaryBtn, marginTop: 10 }} disabled={saving} onClick={() => onSave(value)}>
+        {saving ? "Wird gespeichert…" : "Adresse speichern"}
+      </button>
+    </div>
+  );
+}
+
+function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, onEditListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading, myAddress, onSaveAddress, addressSaving }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -961,6 +986,7 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
         <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
       </div>
       <VerificationSection profile={profile} onSubmit={onSubmitVerification} uploading={verificationUploading} />
+      <AddressEditor address={myAddress} onSave={onSaveAddress} saving={addressSaving} />
       <FavoritesSection listings={favoriteListings} onView={onViewFavorite} />
       <SavedSearchesSection searches={savedSearches} onApply={onApplySearch} onDelete={onDeleteSearch} />
       <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} onView={onViewActiveListing} onEdit={onEditListing} />
@@ -1168,6 +1194,8 @@ export default function App() {
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [listingReports, setListingReports] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [myAddress, setMyAddress] = useState("");
+  const [addressSaving, setAddressSaving] = useState(false);
   const [favoriteBusyId, setFavoriteBusyId] = useState(null);
   const [savedSearches, setSavedSearches] = useState([]);
   const [savingSearch, setSavingSearch] = useState(false);
@@ -1255,6 +1283,7 @@ export default function App() {
         loadOwnProfile(session.user.id);
         fetchMessages(session.user.id);
         fetchUserExtras(session.user.id);
+        fetchMyAddress(session.user.id);
         supabase.from("profiles").update({ last_seen_at: new Date().toISOString() }).eq("id", session.user.id).then(() => {});
       }
     });
@@ -1264,6 +1293,7 @@ export default function App() {
         loadOwnProfile(s.user.id);
         fetchMessages(s.user.id);
         fetchUserExtras(s.user.id);
+        fetchMyAddress(s.user.id);
       } else {
         setProfile(null);
         setMessages([]);
@@ -1287,6 +1317,25 @@ export default function App() {
     ]);
     setFavorites(favs || []);
     setSavedSearches(searches || []);
+  }
+
+  async function fetchMyAddress(userId) {
+    const { data } = await supabase.from("shipping_addresses").select("address").eq("user_id", userId).maybeSingle();
+    setMyAddress(data?.address || "");
+  }
+
+  async function saveMyAddress(address) {
+    if (!session) return;
+    setAddressSaving(true);
+    setError(null);
+    try {
+      const { error: upErr } = await supabase.from("shipping_addresses")
+        .upsert({ user_id: session.user.id, address, updated_at: new Date().toISOString() });
+      if (upErr) throw upErr;
+      setMyAddress(address);
+    } catch (e) {
+      setError("Adresse konnte nicht gespeichert werden: " + (e?.message || "unbekannter Fehler"));
+    } finally { setAddressSaving(false); }
   }
 
   const isAdmin = session && ADMIN_EMAILS.includes(session.user.email);
@@ -2119,10 +2168,10 @@ export default function App() {
           conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey}
           incomingOffers={incomingOffers} outgoingOffers={outgoingOffers} onAcceptOffer={acceptTradeOffer} onDeclineOffer={declineTradeOffer} tradeActionId={tradeActionId}
           incomingRequests={incomingRequests} outgoingRequests={outgoingRequests} onAcceptRequest={acceptPurchaseRequest} onDeclineRequest={declinePurchaseRequest} requestActionId={requestActionId}
-          onMarkRead={markConversationRead} onDeleteMessage={deleteMessage} onDeleteConversation={deleteConversation}
+          onMarkRead={markConversationRead} onDeleteMessage={deleteMessage} onDeleteConversation={deleteConversation} myAddress={myAddress}
         />
       ) : page === "profil" && session && profile ? (
-        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} />
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} myAddress={myAddress} onSaveAddress={saveMyAddress} addressSaving={addressSaving} />
       ) : page.startsWith("user-") ? (
         <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
       ) : page === "admin" && isAdmin ? (
@@ -2537,6 +2586,7 @@ const styles = {
   bubbleTheirs: { background: COLORS.paper, border: `1px solid ${COLORS.stone}` },
   bubbleAuthor: { fontSize: 10.5, fontFamily: "'Inter', sans-serif", color: COLORS.muted, marginBottom: 2 },
   convReplyRow: { display: "flex", gap: 8 },
+  addressInsertBtn: { marginTop: 8, background: "none", border: `1px solid ${COLORS.hairline}`, color: COLORS.muted, borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   errorBar: { maxWidth: 700, margin: "20px auto 0", background: "#FCE9E1", border: `1px solid ${COLORS.rust}`, color: COLORS.rust, borderRadius: 6, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 },
   errorClose: { background: "none", border: "none", color: COLORS.rust, fontSize: 18, cursor: "pointer", lineHeight: 1 },
   adminBox: { maxWidth: 700, margin: "24px auto 0", background: "#FCE9E1", border: `2px solid ${COLORS.rust}`, borderRadius: 8, padding: "16px 18px" },
