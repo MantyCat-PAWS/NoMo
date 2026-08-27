@@ -328,9 +328,41 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
         <span style={styles.ticketSignature}>
           {item.owner_avatar && avatarSrc(item.owner_avatar) && <img src={avatarSrc(item.owner_avatar)} alt="" style={styles.avatarImgTiny} />}
           {item.owner_display_name}
+          {item.owner_verified && <span style={styles.verifiedBadge} title="Ausweis verifiziert">✓</span>}
         </span>
         <span style={styles.ticketFooterMeta}>{item.location} · #{item.code}</span>
       </div>
+    </div>
+  );
+}
+
+function VerificationSection({ profile, onSubmit, uploading }) {
+  const [file, setFile] = useState(null);
+  const status = profile.verification_status;
+  if (profile.verified) {
+    return (
+      <div style={styles.verifyBox}>
+        <h2 style={styles.profileSectionTitle}>Verifizierung</h2>
+        <p style={styles.legalP}>✓ Dein Konto ist mit Ausweis verifiziert. Danke fürs Vertrauen schaffen!</p>
+      </div>
+    );
+  }
+  return (
+    <div style={styles.verifyBox}>
+      <h2 style={styles.profileSectionTitle}>Verifizierung</h2>
+      <p style={styles.legalP}>
+        Lade ein Foto deines Ausweises hoch (Vorderseite reicht), um dein Konto zu verifizieren. Das Bild sehen nur du und die Admin, es wird nach der Prüfung automatisch gelöscht, nur der Verifiziert-Status bleibt. Als Dankeschön gibt's 5 {CURRENCY}.
+      </p>
+      {status === "pending" && <p style={styles.verifyPending}>Anfrage wird geprüft…</p>}
+      {status === "rejected" && <p style={styles.verifyRejected}>Die letzte Anfrage wurde abgelehnt. Du kannst es gerne nochmal versuchen.</p>}
+      {status !== "pending" && (
+        <>
+          <input type="file" accept="image/*" className="mc-input" style={styles.input} onChange={(e) => setFile(e.target.files[0] || null)} />
+          <button type="button" className="mc-btn" style={styles.primaryBtn} disabled={!file || uploading} onClick={() => onSubmit(file)}>
+            {uploading ? "Wird hochgeladen…" : "Ausweis einreichen"}
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -402,7 +434,7 @@ function MessagesPage({
   const hasRequests = incomingRequests.length > 0 || outgoingRequests.length > 0;
   return (
     <div style={styles.legalPage}>
-      <a href="#" style={styles.legalBack}>← Zurück zu NoMo</a>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
       <h1 style={styles.legalTitle}>Nachrichten</h1>
 
       {hasRequests && (
@@ -579,15 +611,39 @@ function SavedSearchesSection({ searches, onApply, onDelete }) {
   );
 }
 
-function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch }) {
+function VerificationRequestRow({ profile, onApprove, onReject, busy }) {
+  const [signedUrl, setSignedUrl] = useState(null);
+  useEffect(() => {
+    let active = true;
+    if (profile.verification_file_path) {
+      supabase.storage.from("id-verification").createSignedUrl(profile.verification_file_path, 300).then(({ data }) => {
+        if (active && data) setSignedUrl(data.signedUrl);
+      });
+    }
+    return () => { active = false; };
+  }, [profile.verification_file_path]);
+  return (
+    <div style={styles.reportRow}>
+      <div><b>{profile.display_name}</b> hat einen Ausweis zur Verifizierung eingereicht.</div>
+      {signedUrl && <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumb} />}
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button style={styles.smallBtn} disabled={busy} onClick={() => onApprove(profile)}>Verifizieren (+5 {CURRENCY})</button>
+        <button style={styles.smallBtnGhost} disabled={busy} onClick={() => onReject(profile)}>Ablehnen</button>
+      </div>
+    </div>
+  );
+}
+
+function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading }) {
   return (
     <div style={styles.legalPage}>
-      <a href="#" style={styles.legalBack}>← Zurück zu NoMo</a>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
       <h1 style={styles.legalTitle}>Mein Profil</h1>
       <div style={{ marginBottom: 36 }}>
         <h2 style={styles.profileSectionTitle}>Profil bearbeiten</h2>
         <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
       </div>
+      <VerificationSection profile={profile} onSubmit={onSubmitVerification} uploading={verificationUploading} />
       <FavoritesSection listings={favoriteListings} onView={onViewFavorite} />
       <SavedSearchesSection searches={savedSearches} onApply={onApplySearch} onDelete={onDeleteSearch} />
       <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} onView={onViewActiveListing} />
@@ -618,7 +674,7 @@ function ImpressumPage() {
       <LegalSection heading="Diensteanbieter">
         <p style={styles.legalP}>Name / Firma: Centerpiece OG</p>
         <p style={styles.legalP}>Anschrift: Bahnhofstraße 10, 4050 Traun, Österreich</p>
-        <p style={styles.legalP}>E-Mail: <Ph>eigene Kontaktadresse für NoMo, z. B. kontakt@mantycat.at, oder kontakt@centerpiece.at verwenden</Ph></p>
+        <p style={styles.legalP}>E-Mail: kontakt@centerpiece.at</p>
         <p style={styles.legalP}>Telefon: 0660 / 64 72 452</p>
       </LegalSection>
       <LegalSection heading="Unternehmensgegenstand">
@@ -629,13 +685,10 @@ function ImpressumPage() {
         <p style={styles.legalP}>Gewerberechtliche Geschäftsführerin: Regina Paulik</p>
         <p style={styles.legalP}>Zuständige Behörde: Bezirkshauptmannschaft Linz-Land</p>
         <p style={styles.legalP}>Mitglied der: Wirtschaftskammer Oberösterreich</p>
-        <p style={styles.legalP}>
-          <Ph>Wichtig: Die bestehende Gewerbeberechtigung von centerpiece (Fachgruppe Kosmetik/Tätowieren) deckt vermutlich nicht automatisch den Betrieb einer Online-Vermittlungsplattform ab. Bitte bei der WKO/Gewerbebehörde klären, ob dafür eine zusätzliche oder erweiterte Gewerbeberechtigung nötig ist, und diese Zeile entsprechend ergänzen.</Ph>
-        </p>
       </LegalSection>
       <LegalSection heading="Firmenbuch">
         <p style={styles.legalP}>Firmenbuchnummer: FN 583745 z</p>
-        <p style={styles.legalP}>Firmenbuchgericht: <Ph>Landesgericht Linz (bitte selbst bestätigen)</Ph></p>
+        <p style={styles.legalP}>Firmenbuchgericht: Landesgericht Linz</p>
       </LegalSection>
       <LegalSection heading="Umsatzsteuer-Identifikationsnummer">
         <p style={styles.legalP}>UID-Nummer: ATU78302356</p>
@@ -711,7 +764,7 @@ function DatenschutzPage() {
     <div>
       <p style={styles.legalP}>Diese Datenschutzerklärung informiert gemäß Art. 13 DSGVO über die Verarbeitung personenbezogener Daten im Rahmen der Nutzung von NoMo.</p>
       <LegalSection heading="1. Verantwortlicher">
-        <p style={styles.legalP}>Centerpiece OG, Bahnhofstraße 10, 4050 Traun, E-Mail: <Ph>eigene Kontaktadresse für NoMo, z. B. kontakt@mantycat.at, oder kontakt@centerpiece.at verwenden</Ph></p>
+        <p style={styles.legalP}>Centerpiece OG, Bahnhofstraße 10, 4050 Traun, E-Mail: kontakt@centerpiece.at</p>
       </LegalSection>
       <LegalSection heading="2. Welche Daten wir verarbeiten">
         <ul style={styles.legalUl}>
@@ -721,6 +774,7 @@ function DatenschutzPage() {
           <li>Kommunikationsdaten: Nachrichten zwischen Nutzer:innen, Tauschanfragen, Bewertungen</li>
           <li>Nutzungsdaten: Paws-Guthaben, Transaktionsverlauf</li>
           <li>Technische Daten: Server-Logs im Rahmen des Hostings</li>
+          <li>Verifizierungsdaten: bei freiwilliger Ausweis-Verifizierung ein Foto eines amtlichen Ausweisdokuments</li>
         </ul>
       </LegalSection>
       <LegalSection heading="3. Zwecke und Rechtsgrundlagen">
@@ -729,19 +783,25 @@ function DatenschutzPage() {
           <li>Kommunikation zwischen Nutzer:innen (Art. 6 Abs. 1 lit. b DSGVO)</li>
           <li>Sicherheit, Missbrauchsprävention, Bearbeitung von Meldungen (Art. 6 Abs. 1 lit. f DSGVO)</li>
           <li>Freiwillige Profilangaben (Art. 6 Abs. 1 lit. a DSGVO)</li>
+          <li>Freiwillige Ausweis-Verifizierung, zur Vertrauensbildung zwischen Nutzer:innen (Art. 6 Abs. 1 lit. a DSGVO, Einwilligung)</li>
         </ul>
       </LegalSection>
-      <LegalSection heading="4. Auftragsverarbeiter und Empfänger">
-        <p style={styles.legalP}>Wir nutzen für Datenbank, Authentifizierung, Dateispeicher und Hosting den Dienst Supabase Inc. Ein Auftragsverarbeitungsvertrag wird mit Supabase abgeschlossen. Serverstandort: <Ph>bitte die bei der Projekterstellung gewählte Supabase-Region eintragen, unter Project Settings → General ersichtlich</Ph>.</p>
+      <LegalSection heading="4. Ausweis-Verifizierung">
+        <p style={styles.legalP}>
+          Nutzer:innen können freiwillig ein Foto eines amtlichen Ausweisdokuments hochladen, um ihr Konto verifizieren zu lassen. Das Bild wird in einem nicht öffentlich zugänglichen Speicherbereich abgelegt, zu dem ausschließlich die hochladende Person selbst und die Administration Zugriff haben. Nach Prüfung und Entscheidung (Bestätigung oder Ablehnung) wird das Bild unverzüglich automatisch gelöscht, gespeichert bleibt lediglich der Status "verifiziert" bzw. "nicht verifiziert" am Konto. Die Verifizierung ist freiwillig; eine Nutzung der Plattform ist auch ohne sie möglich.
+        </p>
       </LegalSection>
-      <LegalSection heading="5. Speicherdauer">
-        <p style={styles.legalP}>Konto- und Angebotsdaten werden bis zur Löschung des Kontos durch die Nutzer:in bzw. bis zum Ablauf gesetzlicher Aufbewahrungsfristen gespeichert. Nachrichten werden gemeinsam mit dem zugehörigen Konto gelöscht.</p>
+      <LegalSection heading="5. Auftragsverarbeiter und Empfänger">
+        <p style={styles.legalP}>Wir nutzen für Datenbank, Authentifizierung, Dateispeicher und Hosting den Dienst Supabase Inc. Ein Auftragsverarbeitungsvertrag wird mit Supabase abgeschlossen. Serverstandort: Österreich.</p>
       </LegalSection>
-      <LegalSection heading="6. Rechte der betroffenen Personen">
+      <LegalSection heading="6. Speicherdauer">
+        <p style={styles.legalP}>Konto- und Angebotsdaten werden bis zur Löschung des Kontos durch die Nutzer:in bzw. bis zum Ablauf gesetzlicher Aufbewahrungsfristen gespeichert. Nachrichten werden gemeinsam mit dem zugehörigen Konto gelöscht. Ausweisbilder werden unmittelbar nach Prüfung der Verifizierungsanfrage gelöscht (siehe Punkt 4).</p>
+      </LegalSection>
+      <LegalSection heading="7. Rechte der betroffenen Personen">
         <p style={styles.legalP}>Nutzer:innen haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch gemäß Art. 15–21 DSGVO sowie das Recht auf Beschwerde bei der österreichischen Datenschutzbehörde (dsb.gv.at).</p>
       </LegalSection>
-      <LegalSection heading="7. Kontakt in Datenschutzfragen">
-        <p style={styles.legalP}>E-Mail: <Ph>eigene Kontaktadresse für NoMo, z. B. kontakt@mantycat.at, oder kontakt@centerpiece.at verwenden</Ph></p>
+      <LegalSection heading="8. Kontakt in Datenschutzfragen">
+        <p style={styles.legalP}>E-Mail: kontakt@centerpiece.at</p>
       </LegalSection>
     </div>
   );
@@ -751,10 +811,10 @@ function LegalPage({ page }) {
   const titles = { impressum: "Impressum", agb: "AGB / Nutzungsbedingungen", datenschutz: "Datenschutzerklärung" };
   return (
     <div style={styles.legalPage}>
-      <a href="#" style={styles.legalBack}>← Zurück zu NoMo</a>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
       <h1 style={styles.legalTitle}>{titles[page]}</h1>
       <div style={styles.legalNotice}>
-        Entwurf, Stand August 2026. Textstellen in <Ph>eckigen Klammern</Ph> sind noch mit den echten Angaben zu befüllen; vor Veröffentlichung von einer Rechtsanwaltskanzlei bzw. Steuerberatung prüfen lassen.
+        Entwurf, Stand August 2026. Vor Veröffentlichung von einer Rechtsanwaltskanzlei bzw. Steuerberatung prüfen lassen.
       </div>
       {page === "impressum" && <ImpressumPage />}
       {page === "agb" && <AgbPage />}
@@ -776,6 +836,8 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [profilesById, setProfilesById] = useState({});
   const [profileSaving, setProfileSaving] = useState(false);
+  const [verificationUploading, setVerificationUploading] = useState(false);
+  const [verificationActionId, setVerificationActionId] = useState(null);
 
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState({ email: "", password: "", displayName: "" });
@@ -828,7 +890,7 @@ export default function App() {
 
   const enrichListing = useCallback((row, pMap) => {
     const owner = pMap[row.owner_id] || {};
-    return { ...row, owner_display_name: owner.display_name || "Unbekannt", owner_avatar: owner.avatar, owner_accent_color: owner.accent_color };
+    return { ...row, owner_display_name: owner.display_name || "Unbekannt", owner_avatar: owner.avatar, owner_accent_color: owner.accent_color, owner_verified: owner.verified };
   }, []);
 
   const fetchAll = useCallback(async () => {
@@ -908,6 +970,7 @@ export default function App() {
   const isAdmin = session && ADMIN_EMAILS.includes(session.user.email);
   const openReports = useMemo(() => ratings.filter((r) => r.stars === 1 && !r.resolved), [ratings]);
   const openContentReports = useMemo(() => listingReports.filter((r) => !r.resolved), [listingReports]);
+  const pendingVerifications = useMemo(() => Object.values(profilesById).filter((p) => p.verification_status === "pending"), [profilesById]);
 
   // Sucheingaben protokollieren (leicht verzögert, damit nicht jeder Tastenanschlag gespeichert wird)
   useEffect(() => {
@@ -1057,6 +1120,50 @@ export default function App() {
     } catch (e) {
       setError("Profil konnte nicht gespeichert werden.");
     } finally { setProfileSaving(false); }
+  }
+
+  async function submitVerification(file) {
+    if (!session || !file) return;
+    setVerificationUploading(true);
+    setError(null);
+    try {
+      const path = `${session.user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
+      const { error: uploadErr } = await supabase.storage.from("id-verification").upload(path, file);
+      if (uploadErr) throw uploadErr;
+      const { error: updErr } = await supabase.from("profiles")
+        .update({ verification_status: "pending", verification_file_path: path }).eq("id", session.user.id);
+      if (updErr) throw updErr;
+      setProfile((p) => ({ ...p, verification_status: "pending", verification_file_path: path }));
+    } catch (e) {
+      setError("Ausweis konnte nicht hochgeladen werden. Bitte nochmal versuchen.");
+    } finally { setVerificationUploading(false); }
+  }
+
+  async function approveVerification(p) {
+    setVerificationActionId(p.id);
+    setError(null);
+    try {
+      await supabase.from("profiles").update({
+        verified: true, verification_status: "verified", verification_file_path: null, balance: (p.balance || 0) + 5,
+      }).eq("id", p.id);
+      if (p.verification_file_path) await supabase.storage.from("id-verification").remove([p.verification_file_path]);
+      fetchAll();
+      if (session && p.id === session.user.id) loadOwnProfile(session.user.id);
+    } catch (e) {
+      setError("Verifizierung konnte nicht bestätigt werden.");
+    } finally { setVerificationActionId(null); }
+  }
+
+  async function rejectVerification(p) {
+    setVerificationActionId(p.id);
+    setError(null);
+    try {
+      await supabase.from("profiles").update({ verification_status: "rejected", verification_file_path: null }).eq("id", p.id);
+      if (p.verification_file_path) await supabase.storage.from("id-verification").remove([p.verification_file_path]);
+      fetchAll();
+    } catch (e) {
+      setError("Ablehnung konnte nicht gespeichert werden.");
+    } finally { setVerificationActionId(null); }
   }
 
   const categoryAverage = useMemo(() => {
@@ -1554,7 +1661,7 @@ export default function App() {
           incomingRequests={incomingRequests} outgoingRequests={outgoingRequests} onAcceptRequest={acceptPurchaseRequest} onDeclineRequest={declinePurchaseRequest} requestActionId={requestActionId}
         />
       ) : page === "profil" && session && profile ? (
-        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} />
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} />
       ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
@@ -1644,6 +1751,15 @@ export default function App() {
                 <button style={styles.smallBtnGhost} disabled={reportActionId === r.id} onClick={() => dismissContentReport(r)}>Ignorieren</button>
               </div>
             </div>
+          ))}
+        </section>
+      )}
+
+      {isAdmin && pendingVerifications.length > 0 && (
+        <section style={styles.adminBox}>
+          <h2 style={styles.adminTitle}>Ausweis-Verifizierungen</h2>
+          {pendingVerifications.map((p) => (
+            <VerificationRequestRow key={p.id} profile={p} onApprove={approveVerification} onReject={rejectVerification} busy={verificationActionId === p.id} />
           ))}
         </section>
       )}
@@ -1920,7 +2036,7 @@ export default function App() {
 const styles = {
   page: { fontFamily: "'Inter', sans-serif", background: COLORS.paper, color: COLORS.ink, minHeight: "100vh" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 32px", borderBottom: `1px solid ${COLORS.hairline}`, background: "rgba(26,28,27,0.92)", backdropFilter: "blur(6px)", position: "sticky", top: 0, zIndex: 5 },
-  logo: { fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 24, letterSpacing: "0.005em", color: COLORS.lime },
+  logo: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: "0.005em", color: COLORS.lime },
   logoRow: { display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 },
   logoWordmark: { height: 34, width: "auto", display: "block" },
   logoImg: { height: 34, width: "auto" },
@@ -1930,11 +2046,11 @@ const styles = {
   reportPill: { background: COLORS.rust, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
   tradePill: { background: COLORS.moss, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
   msgPillBtn: { background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  logoutLink: { background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.rust },
+  logoutLink: { background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.lime },
   hero: { background: COLORS.moss, color: "#fff", padding: "88px 28px 64px", textAlign: "center", position: "relative", overflow: "hidden" },
   heroMonster: { position: "absolute", top: 14, right: "8%", width: 84, height: 84, pointerEvents: "none" },
   heroEyebrow: { fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: "0.18em", color: COLORS.lime, marginBottom: 18 },
-  heroTitle: { fontFamily: "'Playfair Display', serif", fontWeight: 600, fontSize: 52, lineHeight: 1.12, margin: "0 0 20px", letterSpacing: "-0.01em", color: "#fff" },
+  heroTitle: { fontFamily: "'Fredoka', sans-serif", fontWeight: 600, fontSize: 52, lineHeight: 1.12, margin: "0 0 20px", letterSpacing: "-0.01em", color: "#fff" },
   heroSub: { maxWidth: 480, margin: "0 auto 14px", fontSize: 17, lineHeight: 1.55, color: "rgba(255,255,255,0.85)" },
   heroSubSmall: { maxWidth: 480, margin: "0 auto 28px", fontSize: 13.5, lineHeight: 1.5, color: COLORS.stone, opacity: 0.9 },
   heroCta: { display: "inline-block", background: COLORS.lime, color: "#fff", fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14.5, padding: "15px 30px", borderRadius: 999, textDecoration: "none", boxShadow: "0 1px 2px rgba(0,0,0,0.15), 0 10px 24px rgba(0,0,0,0.25)", cursor: "pointer", letterSpacing: "0.01em" },
@@ -1947,7 +2063,7 @@ const styles = {
   authInfo: { fontSize: 13, color: COLORS.muted },
   profileBox: { maxWidth: 480, margin: "8px auto 0", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "18px 20px 20px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", position: "relative", zIndex: 2 },
   profileTitle: { fontFamily: "'Inter', sans-serif", fontSize: 20, margin: "0 0 12px" },
-  profileSectionTitle: { fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 600, margin: "0 0 12px", color: COLORS.lime },
+  profileSectionTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 24, fontWeight: 600, margin: "0 0 12px", color: COLORS.lime },
   profileForm: { display: "flex", flexDirection: "column", gap: 12 },
   avatarRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   avatarBtn: { fontSize: 20, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer" },
@@ -1999,7 +2115,7 @@ const styles = {
   sidebarTab: { textAlign: "left", fontFamily: "'Inter', sans-serif", fontSize: 13.5, padding: "7px 10px", borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", color: COLORS.ink },
   sidebarTabActive: { background: COLORS.ink, color: COLORS.paper, fontWeight: 600 },
   boardMain: { flex: 1, minWidth: 0 },
-  boardTitle: { fontFamily: "'Playfair Display', serif", fontSize: 30, fontWeight: 600, margin: 0, color: COLORS.lime },
+  boardTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 30, fontWeight: 600, margin: 0, color: COLORS.lime },
   searchInput: { width: "100%", fontFamily: "'Inter', sans-serif", fontSize: 15, padding: "12px 14px", border: `1px solid ${COLORS.hairline}`, borderRadius: 6, background: COLORS.card, marginBottom: 20, color: COLORS.ink },
   recentSearchRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: -12, marginBottom: 16 },
   recentSearchLabel: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted },
@@ -2031,6 +2147,11 @@ const styles = {
   galleryThumbActive: { borderColor: COLORS.ink, opacity: 1 },
   ticketFooter: { marginTop: "auto", paddingTop: 12, borderTop: `1px solid ${COLORS.hairline}`, display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 },
   ticketSignature: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 13, color: COLORS.ink },
+  verifiedBadge: { marginLeft: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 15, height: 15, borderRadius: "50%", background: COLORS.lime, color: "#fff", fontSize: 10, fontWeight: 700 },
+  verifyBox: { marginBottom: 36 },
+  verifyPending: { fontSize: 13, color: COLORS.muted, fontStyle: "italic" },
+  verifyRejected: { fontSize: 13, color: COLORS.rust, marginBottom: 10 },
+  verifyThumb: { width: 220, maxWidth: "100%", borderRadius: 8, border: `1px solid ${COLORS.hairline}`, display: "block", marginBottom: 8 },
   ticketFooterMeta: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted },
   badgeRow: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
   catBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.muted, background: COLORS.paper, padding: "4px 9px", borderRadius: 20 },
@@ -2082,7 +2203,7 @@ const styles = {
 
   legalPage: { maxWidth: 760, margin: "0 auto", padding: "48px 28px 60px" },
   legalBack: { display: "inline-block", marginBottom: 20, fontFamily: "'Inter', sans-serif", fontSize: 13, color: COLORS.moss, textDecoration: "underline" },
-  legalTitle: { fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 600, margin: "0 0 16px", color: COLORS.lime },
+  legalTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 36, fontWeight: 600, margin: "0 0 16px", color: COLORS.lime },
   legalNotice: { fontSize: 12.5, color: COLORS.muted, background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 6, padding: "12px 14px", marginBottom: 28, lineHeight: 1.5 },
   legalH3: { fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 600, margin: "0 0 8px", color: COLORS.moss },
   legalP: { fontSize: 14, lineHeight: 1.6, margin: "0 0 10px", color: COLORS.ink },
