@@ -1205,6 +1205,7 @@ export default function App() {
         .update({ verification_status: "pending", verification_file_path: path }).eq("id", session.user.id);
       if (updErr) throw updErr;
       setProfile((p) => ({ ...p, verification_status: "pending", verification_file_path: path }));
+      fetchAll();
     } catch (e) {
       setError("Ausweis konnte nicht hochgeladen werden: " + (e?.message || "unbekannter Fehler"));
     } finally { setVerificationUploading(false); }
