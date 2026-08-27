@@ -578,7 +578,7 @@ function MessagesPage({
   );
 }
 
-function ActiveListingsSection({ listings, onDelete, onView }) {
+function ActiveListingsSection({ listings, onDelete, onView, onEdit }) {
   return (
     <div style={{ marginBottom: 36 }}>
       <h2 style={styles.profileSectionTitle}>Aktive Zettel</h2>
@@ -596,6 +596,7 @@ function ActiveListingsSection({ listings, onDelete, onView }) {
                   {l.listing_type === "suche" ? "Gesuch" : <>{l.price} {l.price === 1 ? CURRENCY_SINGULAR : CURRENCY}</>}
                 </div>
               </button>
+              <button style={styles.smallBtnGhost} onClick={() => onEdit(l)}>Bearbeiten</button>
               <button style={styles.smallBtnGhostInk} onClick={() => onDelete(l.id)}>Löschen</button>
             </div>
           ))}
@@ -907,7 +908,7 @@ function PublicProfilePage({ userId, profilesById, listings, onViewListing }) {
   );
 }
 
-function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading }) {
+function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, onEditListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -919,7 +920,7 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
       <VerificationSection profile={profile} onSubmit={onSubmitVerification} uploading={verificationUploading} />
       <FavoritesSection listings={favoriteListings} onView={onViewFavorite} />
       <SavedSearchesSection searches={savedSearches} onApply={onApplySearch} onDelete={onDeleteSearch} />
-      <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} onView={onViewActiveListing} />
+      <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} onView={onViewActiveListing} onEdit={onEditListing} />
       <CompletedListingsSection listings={completedListings} onDelete={onDeleteListing} profilesById={profilesById} />
     </div>
   );
@@ -1152,6 +1153,8 @@ export default function App() {
   const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [editingListingId, setEditingListingId] = useState(null);
+  const [existingImageUrls, setExistingImageUrls] = useState([]);
   const [saving, setSaving] = useState(false);
   const [requestingId, setRequestingId] = useState(null);
   const [requestActionId, setRequestActionId] = useState(null);
@@ -1555,7 +1558,7 @@ export default function App() {
     setSaving(true);
     setError(null);
     try {
-      let imageUrls = [];
+      let newImageUrls = [];
       if (imageFiles.length > 0) {
         for (const file of imageFiles.slice(0, 5)) {
           const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
@@ -1566,28 +1569,77 @@ export default function App() {
             return;
           }
           const { data: urlData } = supabase.storage.from("listing-images").getPublicUrl(path);
-          imageUrls.push(urlData.publicUrl);
+          newImageUrls.push(urlData.publicUrl);
         }
       }
+      const imageUrls = [...existingImageUrls, ...newImageUrls].slice(0, 5);
 
-      const code = String(listings.length + 1).padStart(4, "0");
-      const { error: insErr } = await supabase.from("listings").insert({
-        code, title: form.title.trim(), category: form.category, description: form.description.trim(),
-        price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
-        owner_id: session.user.id, status: "verfuegbar", image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
-        listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
-      });
-      if (insErr) throw insErr;
+      if (editingListingId) {
+        const { error: updErr } = await supabase.from("listings").update({
+          title: form.title.trim(), category: form.category, description: form.description.trim(),
+          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
+          image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
+          listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
+        }).eq("id", editingListingId);
+        if (updErr) throw updErr;
+      } else {
+        const code = String(listings.length + 1).padStart(4, "0");
+        const { error: insErr } = await supabase.from("listings").insert({
+          code, title: form.title.trim(), category: form.category, description: form.description.trim(),
+          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
+          owner_id: session.user.id, status: "verfuegbar", image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
+          listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
+        });
+        if (insErr) throw insErr;
+      }
 
       setForm({ title: "", category: "sache", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
       setImageFiles([]);
       setImagePreviews([]);
+      setExistingImageUrls([]);
+      setEditingListingId(null);
       setShowForm(false);
       fetchAll();
     } catch (e) {
       setError("Angebot konnte nicht gespeichert werden: " + (e.message || "unbekannter Fehler"));
     } finally { setSaving(false); }
   }
+
+  function startEditListing(listing) {
+    setForm({
+      title: listing.title || "",
+      category: listing.category || "sonstiges",
+      description: listing.description || "",
+      priceEuro: listing.price_euro != null ? String(listing.price_euro) : "",
+      pawsPerHour: listing.category === "dienstleistung" ? String(listing.price || "") : "",
+      shippingEuro: listing.shipping_paws ? String(listing.shipping_paws * EURO_TO_PAW) : "",
+      location: listing.location || "Traun",
+      sellerType: listing.seller_type || "privat",
+      listingType: listing.listing_type || "biete",
+      maxOfferPaws: listing.max_offer_paws != null ? String(listing.max_offer_paws) : "",
+      ships: listing.ships !== false,
+    });
+    setExistingImageUrls(listing.image_urls && listing.image_urls.length > 0 ? listing.image_urls : (listing.image_url ? [listing.image_url] : []));
+    setImageFiles([]);
+    setImagePreviews([]);
+    setEditingListingId(listing.id);
+    setShowForm(true);
+    if (window.location.hash) window.location.hash = "";
+    setTimeout(() => {
+      const el = document.getElementById("angebote");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }, 60);
+  }
+
+  function cancelListingForm() {
+    setShowForm(false);
+    setEditingListingId(null);
+    setExistingImageUrls([]);
+    setImageFiles([]);
+    setImagePreviews([]);
+    setForm({ title: "", category: "sache", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+  }
+
 
   async function deleteListing(id) {
     try {
@@ -2020,7 +2072,7 @@ export default function App() {
           onMarkRead={markConversationRead} onDeleteMessage={deleteMessage} onDeleteConversation={deleteConversation}
         />
       ) : page === "profil" && session && profile ? (
-        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} />
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} />
       ) : page.startsWith("user-") ? (
         <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
       ) : page === "admin" && isAdmin ? (
@@ -2103,7 +2155,7 @@ export default function App() {
         <div style={styles.boardHead}>
           <h2 style={styles.boardTitle}>Alle Angebote</h2>
           {session && (
-            <button className="mc-btn" style={styles.primaryBtn} onClick={() => setShowForm((s) => !s)}>{showForm ? "Abbrechen" : "+ Zettel aufhängen"}</button>
+            <button className="mc-btn" style={styles.primaryBtn} onClick={() => { if (showForm) { cancelListingForm(); } else { setShowForm(true); } }}>{showForm ? "Abbrechen" : "+ Zettel aufhängen"}</button>
           )}
         </div>
 
@@ -2271,16 +2323,22 @@ export default function App() {
                 }}
               />
             </label>
-            {imagePreviews.length > 0 && (
+            {(existingImageUrls.length > 0 || imagePreviews.length > 0) && (
               <div style={styles.imagePreviewRow}>
-                {imagePreviews.map((src, i) => <img key={i} src={src} alt="Vorschau" style={styles.imagePreviewThumb} />)}
+                {existingImageUrls.map((src, i) => (
+                  <div key={`existing-${i}`} style={styles.imagePreviewWrap}>
+                    <img src={src} alt="Vorhandenes Foto" style={styles.imagePreviewThumb} />
+                    <button type="button" style={styles.imagePreviewRemove} onClick={() => setExistingImageUrls((u) => u.filter((_, idx) => idx !== i))} aria-label="Foto entfernen">×</button>
+                  </div>
+                ))}
+                {imagePreviews.map((src, i) => <img key={`new-${i}`} src={src} alt="Vorschau" style={styles.imagePreviewThumb} />)}
               </div>
             )}
             <label style={styles.label}>
               Standort
               <input className="mc-input" style={styles.input} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </label>
-            <button type="submit" className="mc-btn" style={styles.primaryBtn} disabled={saving}>{saving ? "Wird aufgehängt…" : "Zettel aufhängen"}</button>
+            <button type="submit" className="mc-btn" style={styles.primaryBtn} disabled={saving}>{saving ? "Wird gespeichert…" : editingListingId ? "Änderungen speichern" : "Zettel aufhängen"}</button>
           </form>
         )}
 
@@ -2465,6 +2523,8 @@ const styles = {
   hobbyHint: { fontSize: 12.5, background: COLORS.paper, border: `1px dashed ${COLORS.moss}`, borderRadius: 6, padding: "10px 12px", color: COLORS.muted },
   imagePreviewRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   imagePreviewThumb: { width: 72, height: 72, objectFit: "cover", borderRadius: 4, border: `1.5px solid ${COLORS.stone}` },
+  imagePreviewWrap: { position: "relative", display: "inline-block" },
+  imagePreviewRemove: { position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: COLORS.rust, color: "#fff", border: "none", cursor: "pointer", fontSize: 13, lineHeight: 1 },
   valueHint: { fontSize: 12.5, color: COLORS.muted, lineHeight: 1.5, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "10px 12px" },
   primaryBtn: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 8, padding: "11px 20px", cursor: "pointer", alignSelf: "flex-start", boxShadow: "0 1px 2px rgba(33,28,20,0.06), 0 4px 10px rgba(33,28,20,0.1)" },
   smallBtn: { marginTop: 8, fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 12.5, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 6, padding: "8px 15px", cursor: "pointer" },
