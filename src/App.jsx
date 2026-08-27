@@ -652,36 +652,70 @@ function SavedSearchesSection({ searches, onApply, onDelete }) {
   );
 }
 
-function VerificationRequestRow({ profile, onApprove, onReject, busy }) {
+function VerificationImage({ path }) {
   const [signedUrl, setSignedUrl] = useState(null);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
   useEffect(() => {
     let active = true;
-    if (profile.verification_file_path) {
-      supabase.storage.from("id-verification").createSignedUrl(profile.verification_file_path, 300).then(({ data }) => {
+    if (path) {
+      supabase.storage.from("id-verification").createSignedUrl(path, 300).then(({ data }) => {
         if (active && data) setSignedUrl(data.signedUrl);
       });
     }
     return () => { active = false; };
-  }, [profile.verification_file_path]);
-  return (
-    <div style={styles.reportRow}>
-      <div><b>{profile.display_name}</b> hat einen Ausweis zur Verifizierung eingereicht.</div>
-      {signedUrl && (
-        <button type="button" style={styles.verifyThumbBtn} onClick={() => setLightboxOpen(true)} title="Zum Vergrößern anklicken">
-          <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumb} />
-        </button>
-      )}
-      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button style={styles.smallBtn} disabled={busy} onClick={() => onApprove(profile)}>Verifizieren (+5 {CURRENCY})</button>
-        <button style={styles.smallBtnGhost} disabled={busy} onClick={() => onReject(profile)}>Ablehnen</button>
-      </div>
-      {lightboxOpen && signedUrl && (
-        <div style={styles.lightboxOverlay} onClick={() => setLightboxOpen(false)}>
-          <img src={signedUrl} alt="Eingereichter Ausweis, vergrößert" style={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
-          <button type="button" style={styles.lightboxClose} onClick={() => setLightboxOpen(false)} aria-label="Schließen">✕</button>
+  }, [path]);
+  if (!signedUrl) return <div style={styles.verifyPending}>Bild wird geladen…</div>;
+  return <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumbLarge} />;
+}
+
+function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, busyId }) {
+  const [selectedId, setSelectedId] = useState(null);
+  if (items.length === 0) return <div style={styles.inboxEmpty}>Keine offenen Meldungen.</div>;
+  const selected = items.find((it) => it.id === selectedId);
+
+  if (selected) {
+    const r = selected.raw;
+    const busy = busyId === r.id;
+    return (
+      <div style={styles.convBox}>
+        <button type="button" style={styles.legalBack} onClick={() => setSelectedId(null)}>← Zurück zur Übersicht</button>
+        <div style={styles.convHead}><b>{selected.title}</b></div>
+        {selected.subtitle && <p style={styles.legalP}>{selected.subtitle}</p>}
+        {selected.kind === "verification" && <VerificationImage path={r.verification_file_path} />}
+        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          {selected.kind === "rating" && (
+            <>
+              <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onBlockUser(r); setSelectedId(null); }}>Nutzer sperren</button>
+              <button style={styles.smallBtnGhost} disabled={busy} onClick={() => { onDismissRating(r); setSelectedId(null); }}>Löschen</button>
+            </>
+          )}
+          {selected.kind === "content" && (
+            <>
+              <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onRemoveListing(r); setSelectedId(null); }}>Angebot entfernen</button>
+              <button style={styles.smallBtnGhost} disabled={busy} onClick={() => { onDismissContent(r); setSelectedId(null); }}>Löschen</button>
+            </>
+          )}
+          {selected.kind === "verification" && (
+            <>
+              <button style={styles.smallBtn} disabled={busy} onClick={() => { onApproveVerification(r); setSelectedId(null); }}>Verifizieren (+5 {CURRENCY})</button>
+              <button style={styles.smallBtnGhost} disabled={busy} onClick={() => { onRejectVerification(r); setSelectedId(null); }}>Löschen / Ablehnen</button>
+            </>
+          )}
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.convList}>
+      {items.map((it) => (
+        <button key={it.id} type="button" style={styles.convListRow} onClick={() => setSelectedId(it.id)}>
+          <div style={styles.convListMain}>
+            <div>{it.title}</div>
+            {it.subtitle && <div style={styles.convListSnippet}>{it.subtitle}</div>}
+          </div>
+          <span style={styles.unreadBadge}>{it.kindLabel}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -1023,6 +1057,24 @@ export default function App() {
   const openReports = useMemo(() => ratings.filter((r) => r.stars === 1 && !r.resolved), [ratings]);
   const openContentReports = useMemo(() => listingReports.filter((r) => !r.resolved), [listingReports]);
   const pendingVerifications = useMemo(() => Object.values(profilesById).filter((p) => p.verification_status === "pending"), [profilesById]);
+  const reportItems = useMemo(() => {
+    const a = openReports.map((r) => ({
+      id: `rating-${r.id}`, kind: "rating", kindLabel: "1★", raw: r, created_at: r.created_at,
+      title: `${profilesById[r.rated_id]?.display_name || "?"} — 1-Stern-Bewertung`,
+      subtitle: `von ${profilesById[r.by_id]?.display_name || "?"}${r.item_title ? ` zu „${r.item_title}"` : ""}${r.comment ? `: "${r.comment}"` : ""}`,
+    }));
+    const b = openContentReports.map((r) => ({
+      id: `content-${r.id}`, kind: "content", kindLabel: "Angebot", raw: r, created_at: r.created_at,
+      title: r.item_title || "(Angebot bereits gelöscht)",
+      subtitle: `gemeldet von ${profilesById[r.reported_by]?.display_name || "?"}, Grund: ${r.reason}${r.comment ? `: "${r.comment}"` : ""}`,
+    }));
+    const c = pendingVerifications.map((p) => ({
+      id: `verify-${p.id}`, kind: "verification", kindLabel: "Ausweis", raw: p, created_at: p.verification_submitted_at || p.created_at,
+      title: `${p.display_name} — Ausweis-Verifizierung`,
+      subtitle: "Ausweisfoto zur Prüfung eingereicht.",
+    }));
+    return [...a, ...b, ...c].sort((x, y) => (y.created_at || "").localeCompare(x.created_at || ""));
+  }, [openReports, openContentReports, pendingVerifications, profilesById]);
 
   // Sucheingaben protokollieren (leicht verzögert, damit nicht jeder Tastenanschlag gespeichert wird)
   useEffect(() => {
@@ -1213,7 +1265,7 @@ export default function App() {
         .upload(path, cleanBlob, { contentType: file.type || "application/octet-stream", upsert: false });
       if (uploadErr) throw uploadErr;
       const { error: updErr } = await supabase.from("profiles")
-        .update({ verification_status: "pending", verification_file_path: path }).eq("id", session.user.id);
+        .update({ verification_status: "pending", verification_file_path: path, verification_submitted_at: new Date().toISOString() }).eq("id", session.user.id);
       if (updErr) throw updErr;
       setProfile((p) => ({ ...p, verification_status: "pending", verification_file_path: path }));
       fetchAll();
@@ -1804,45 +1856,19 @@ export default function App() {
         </div>
       )}
 
-      {isAdmin && openReports.length > 0 && (
+      {isAdmin && reportItems.length > 0 && (
         <section style={styles.adminBox}>
-          <h2 style={styles.adminTitle}>Meldungen (1-Stern-Bewertungen)</h2>
-          {openReports.map((r) => (
-            <div key={r.id} style={styles.reportRow}>
-              <div><b>{profilesById[r.rated_id]?.display_name}</b> wurde von <b>{profilesById[r.by_id]?.display_name}</b> mit 1 Stern bewertet{r.comment ? <>: "{r.comment}"</> : "."} (Angebot: {r.item_title})</div>
-              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                <button style={styles.smallBtnRust} onClick={() => blockUser(r)}>Nutzer sperren</button>
-                <button style={styles.smallBtnGhost} onClick={() => dismissReport(r)}>Ignorieren</button>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {isAdmin && openContentReports.length > 0 && (
-        <section style={styles.adminBox}>
-          <h2 style={styles.adminTitle}>Gemeldete Angebote</h2>
-          {openContentReports.map((r) => (
-            <div key={r.id} style={styles.reportRow}>
-              <div>
-                <b>{r.item_title || "(Angebot bereits gelöscht)"}</b> gemeldet von <b>{profilesById[r.reported_by]?.display_name}</b>, Grund: <b>{r.reason}</b>
-                {r.comment ? <>: "{r.comment}"</> : ""}
-              </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                <button style={styles.smallBtnRust} disabled={reportActionId === r.id} onClick={() => removeReportedListing(r)}>Angebot entfernen</button>
-                <button style={styles.smallBtnGhost} disabled={reportActionId === r.id} onClick={() => dismissContentReport(r)}>Ignorieren</button>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {isAdmin && pendingVerifications.length > 0 && (
-        <section style={styles.adminBox}>
-          <h2 style={styles.adminTitle}>Ausweis-Verifizierungen</h2>
-          {pendingVerifications.map((p) => (
-            <VerificationRequestRow key={p.id} profile={p} onApprove={approveVerification} onReject={rejectVerification} busy={verificationActionId === p.id} />
-          ))}
+          <h2 style={styles.adminTitle}>Meldungen</h2>
+          <ReportsInbox
+            items={reportItems}
+            onDismissRating={dismissReport}
+            onBlockUser={blockUser}
+            onRemoveListing={removeReportedListing}
+            onDismissContent={dismissContentReport}
+            onApproveVerification={approveVerification}
+            onRejectVerification={rejectVerification}
+            busyId={reportActionId || verificationActionId}
+          />
         </section>
       )}
 
@@ -2242,11 +2268,7 @@ const styles = {
   verifyBox: { marginBottom: 36 },
   verifyPending: { fontSize: 13, color: COLORS.muted, fontStyle: "italic" },
   verifyRejected: { fontSize: 13, color: COLORS.rust, marginBottom: 10 },
-  verifyThumb: { width: 220, maxWidth: "100%", borderRadius: 8, border: `1px solid ${COLORS.hairline}`, display: "block", marginBottom: 8 },
-  verifyThumbBtn: { background: "none", border: "none", padding: 0, cursor: "zoom-in", display: "block" },
-  lightboxOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, cursor: "zoom-out", padding: 24 },
-  lightboxImg: { maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", cursor: "default" },
-  lightboxClose: { position: "fixed", top: 20, right: 24, background: "none", border: "none", color: "#fff", fontSize: 28, cursor: "pointer", lineHeight: 1 },
+  verifyThumbLarge: { maxWidth: "100%", width: 420, borderRadius: 8, border: `1px solid ${COLORS.hairline}`, display: "block", marginTop: 10, marginBottom: 4 },
   ticketFooterMeta: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted },
   badgeRow: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
   catBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.muted, background: COLORS.paper, padding: "4px 9px", borderRadius: 20 },
