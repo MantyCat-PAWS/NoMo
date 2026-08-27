@@ -272,11 +272,18 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
         )
       ) : (
         <>
-          <div style={styles.priceRow}>
-            <PawCoin size={20} />
-            <span style={styles.priceValue}>{item.price}</span>
-            <span style={styles.priceLabel}>{item.price === 1 ? CURRENCY_SINGULAR : CURRENCY}{item.category === "dienstleistung" ? " pro Stunde" : ""}</span>
-          </div>
+          {item.price === 0 && item.category !== "dienstleistung" ? (
+            <div style={styles.priceRow}>
+              <PawCoin size={20} />
+              <span style={styles.priceValue}>Zu verschenken</span>
+            </div>
+          ) : (
+            <div style={styles.priceRow}>
+              <PawCoin size={20} />
+              <span style={styles.priceValue}>{item.price}</span>
+              <span style={styles.priceLabel}>{item.price === 1 ? CURRENCY_SINGULAR : CURRENCY}{item.category === "dienstleistung" ? " pro Stunde" : ""}</span>
+            </div>
+          )}
           {info.physical && item.shipping_paws > 0 && (
             <div style={styles.shippingLine}>+ {item.shipping_paws} {item.shipping_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} Versand</div>
           )}
@@ -289,7 +296,7 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
         <div style={styles.actionRow}>
           <button style={{ ...styles.requestBtn, ...(canAfford && !alreadyRequested ? {} : styles.requestBtnDisabled) }}
             onClick={() => onRequest(item)} disabled={requesting || !canAfford || alreadyRequested}>
-            {requesting ? "einen Moment…" : alreadyRequested ? "Anfrage gesendet, warte auf Antwort" : canAfford ? `Für ${total} ${total === 1 ? CURRENCY_SINGULAR : CURRENCY}${item.category === "dienstleistung" ? "/Std." : ""} anfragen` : "zu wenig " + CURRENCY}
+            {requesting ? "einen Moment…" : alreadyRequested ? "Anfrage gesendet, warte auf Antwort" : !canAfford ? "zu wenig " + CURRENCY : total === 0 ? "Kostenlos anfordern" : `Für ${total} ${total === 1 ? CURRENCY_SINGULAR : CURRENCY}${item.category === "dienstleistung" ? "/Std." : ""} anfragen`}
           </button>
           <div style={{ display: "flex", gap: 6 }}>
             <button style={styles.tradeToggleBtn} onClick={() => onToggleTradeForm(item.id)}>
@@ -1521,9 +1528,8 @@ export default function App() {
       if (!rate) return null;
       return Math.round(rate);
     }
-    const euro = Number(form.priceEuro);
-    if (!euro) return null;
-    return euroToPaws(euro);
+    if (form.priceEuro === "") return null;
+    return euroToPaws(Number(form.priceEuro));
   }, [form.category, form.pawsPerHour, form.priceEuro]);
 
   const shippingPreview = useMemo(() => {
@@ -1544,8 +1550,9 @@ export default function App() {
         if (!rate || rate <= 0) { setError("Bitte einen Preis pro Stunde in " + CURRENCY + " angeben."); return; }
         price = Math.round(rate);
       } else {
+        if (form.priceEuro === "" || form.priceEuro === null) { setError("Bitte einen Preis in Euro angeben (oder \"Zu verschenken\" wählen)."); return; }
         const euro = Number(form.priceEuro);
-        if (!euro) { setError("Bitte einen Preis in Euro angeben."); return; }
+        if (euro < 0) { setError("Der Preis darf nicht negativ sein."); return; }
         price = euroToPaws(euro);
         extra = { price_euro: euro };
       }
@@ -2273,7 +2280,14 @@ export default function App() {
                 ) : (
                   <label style={styles.label}>
                     Preis in Euro
-                    <input className="mc-input" style={styles.input} type="number" min="0" value={form.priceEuro} onChange={(e) => setForm({ ...form, priceEuro: e.target.value })} placeholder="ungefährer Wert" />
+                    <input className="mc-input" style={styles.input} type="number" min="0" value={form.priceEuro}
+                      disabled={form.priceEuro === "0"}
+                      onChange={(e) => setForm({ ...form, priceEuro: e.target.value })} placeholder="ungefährer Wert" />
+                    <label style={styles.checkboxRow}>
+                      <input type="checkbox" checked={form.priceEuro === "0"}
+                        onChange={(e) => setForm({ ...form, priceEuro: e.target.checked ? "0" : "" })} />
+                      Zu verschenken (0 €)
+                    </label>
                   </label>
                 )}
                 {catInfo(form.category).physical && (
@@ -2519,6 +2533,7 @@ const styles = {
   form: { background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: 24, marginBottom: 34, display: "flex", flexDirection: "column", gap: 14, boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)" },
   formRow: { display: "flex", gap: 14, flexWrap: "wrap" },
   label: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 500, flex: 1, minWidth: 180 },
+  checkboxRow: { display: "flex", flexDirection: "row", alignItems: "center", gap: 6, fontWeight: 400, fontSize: 12.5, marginTop: 2, cursor: "pointer" },
   input: { fontFamily: "'Inter', sans-serif", fontSize: 14, padding: "10px 12px", border: `1.5px solid ${COLORS.stone}`, borderRadius: 5, background: COLORS.paper, color: COLORS.ink },
   hobbyHint: { fontSize: 12.5, background: COLORS.paper, border: `1px dashed ${COLORS.moss}`, borderRadius: 6, padding: "10px 12px", color: COLORS.muted },
   imagePreviewRow: { display: "flex", gap: 8, flexWrap: "wrap" },
