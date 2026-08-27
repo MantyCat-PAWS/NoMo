@@ -588,6 +588,9 @@ function MessagesPage({
                         {r.requires_shipping && r.ship_deadline && (
                           <> Bitte bis <b>{new Date(r.ship_deadline).toLocaleDateString("de-AT")}</b> versenden.</>
                         )}
+                        {!r.requires_shipping && r.ship_deadline && (
+                          <> {r.buyer_name} hat bis <b>{new Date(r.ship_deadline).toLocaleDateString("de-AT")}</b> Zeit, die Übergabe zu bestätigen — sonst kann die Anfrage storniert werden.</>
+                        )}
                       </div>
                       {r.requires_shipping && (
                         <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
@@ -607,13 +610,14 @@ function MessagesPage({
             <>
               <div style={styles.tradeSubhead}>Von dir gestellt</div>
               {outgoingRequests.map((r) => {
-                const overdue = r.status === "angenommen" && r.requires_shipping && r.ship_deadline && new Date(r.ship_deadline) < new Date();
+                const overdue = r.status === "angenommen" && r.ship_deadline && new Date(r.ship_deadline) < new Date();
                 return (
                   <div key={r.id} style={styles.tradeRow}>
                     Du hast <b>{r.item_title}</b> bei {r.seller_name} für {r.total_paws} {r.total_paws === 1 ? CURRENCY_SINGULAR : CURRENCY} angefragt — Status: {r.status}
-                    {r.status === "angenommen" && !r.requires_shipping && <> Deine {CURRENCY} liegen sicher bereit. Bestätige den Erhalt/die Übergabe, sobald alles geklärt ist.</>}
+                    {r.status === "angenommen" && !r.requires_shipping && !overdue && r.ship_deadline && <> Deine {CURRENCY} liegen sicher bereit. Bestätige den Erhalt/die Übergabe bis <b>{new Date(r.ship_deadline).toLocaleDateString("de-AT")}</b>, sonst kannst du danach stornieren.</>}
                     {r.status === "angenommen" && r.requires_shipping && !overdue && r.ship_deadline && <> Deine {CURRENCY} liegen sicher bereit. {r.seller_name} hat bis <b>{new Date(r.ship_deadline).toLocaleDateString("de-AT")}</b> Zeit zum Versenden.</>}
-                    {overdue && <> ⚠️ Die Versandfrist ist abgelaufen und {r.seller_name} hat noch nicht als versendet markiert.</>}
+                    {overdue && r.requires_shipping && <> ⚠️ Die Versandfrist ist abgelaufen und {r.seller_name} hat noch nicht als versendet markiert.</>}
+                    {overdue && !r.requires_shipping && <> ⚠️ Die Frist zur Bestätigung der Übergabe ist abgelaufen.</>}
                     {r.status === "versendet" && <> 📦 Als versendet markiert. Bestätige den Erhalt, sobald es angekommen ist.</>}
                     {(r.status === "angenommen" || r.status === "versendet") && (
                       <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
