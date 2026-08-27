@@ -1888,38 +1888,12 @@ export default function App() {
     setRequestActionId(req.id);
     setError(null);
     try {
-      const { data: buyerRow } = await supabase.from("profiles").select("balance").eq("id", req.buyer_id).single();
-      if (!buyerRow || (buyerRow.balance || 0) < req.total_paws) {
-        setError("Diese Person hat nicht mehr genug " + CURRENCY + ", die Anfrage kann nicht angenommen werden.");
-        setRequestActionId(null);
-        return;
-      }
-
-      const { data: itemRow } = await supabase.from("listings").select("status, shipping_paws, category, ships").eq("id", req.item_id).single();
-      if (!itemRow || itemRow.status !== "verfuegbar") {
-        setError("Dieses Angebot ist nicht mehr verfügbar.");
-        setRequestActionId(null);
-        return;
-      }
-
-      const requiresShipping = catInfo(itemRow.category).physical && itemRow.ships !== false;
-      const shipDeadline = requiresShipping ? new Date(Date.now() + SHIP_DAYS * 86400000).toISOString() : null;
-
-      // NoMo's werden dem Käufer jetzt abgezogen, aber der verkaufenden Person erst
-      // gutgeschrieben, wenn der Erhalt bestätigt wurde (Käuferschutz/Treuhand).
-      await supabase.from("profiles").update({ balance: buyerRow.balance - req.total_paws }).eq("id", req.buyer_id);
-      await supabase.from("listings").update({ status: "vergeben", buyer_id: req.buyer_id }).eq("id", req.item_id);
-      await supabase.from("purchase_requests").update({ status: "angenommen", ship_deadline: shipDeadline }).eq("id", req.id);
-
-      const otherOpen = purchaseRequests.filter((r) => r.item_id === req.item_id && r.id !== req.id && r.status === "offen");
-      for (const r of otherOpen) {
-        await supabase.from("purchase_requests").update({ status: "abgelehnt" }).eq("id", r.id);
-      }
-
+      const { error: rpcErr } = await supabase.rpc("accept_purchase_request", { request_id: req.id });
+      if (rpcErr) throw rpcErr;
       fetchAll();
       if (session) loadOwnProfile(session.user.id);
     } catch (e) {
-      setError("Anfrage konnte nicht angenommen werden.");
+      setError("Anfrage konnte nicht angenommen werden: " + (e?.message || "unbekannter Fehler"));
     } finally { setRequestActionId(null); }
   }
 
@@ -1939,13 +1913,12 @@ export default function App() {
     setRequestActionId(req.id);
     setError(null);
     try {
-      const { data: sellerRow } = await supabase.from("profiles").select("balance").eq("id", req.seller_id).single();
-      await supabase.from("profiles").update({ balance: (sellerRow?.balance || 0) + req.total_paws }).eq("id", req.seller_id);
-      const { error: updErr } = await supabase.from("purchase_requests").update({ status: "abgeschlossen", completed_at: new Date().toISOString() }).eq("id", req.id);
-      if (updErr) throw updErr;
+      const { error: rpcErr } = await supabase.rpc("confirm_purchase_receipt", { request_id: req.id });
+      if (rpcErr) throw rpcErr;
       fetchAll();
+      if (session) loadOwnProfile(session.user.id);
     } catch (e) {
-      setError("Erhalt konnte nicht bestätigt werden.");
+      setError("Erhalt konnte nicht bestätigt werden: " + (e?.message || "unbekannter Fehler"));
     } finally { setRequestActionId(null); }
   }
 
@@ -1953,15 +1926,12 @@ export default function App() {
     setRequestActionId(req.id);
     setError(null);
     try {
-      const { data: buyerRow } = await supabase.from("profiles").select("balance").eq("id", req.buyer_id).single();
-      await supabase.from("profiles").update({ balance: (buyerRow?.balance || 0) + req.total_paws }).eq("id", req.buyer_id);
-      await supabase.from("listings").update({ status: "verfuegbar", buyer_id: null }).eq("id", req.item_id);
-      const { error: updErr } = await supabase.from("purchase_requests").update({ status: "storniert", cancelled_at: new Date().toISOString() }).eq("id", req.id);
-      if (updErr) throw updErr;
+      const { error: rpcErr } = await supabase.rpc("cancel_overdue_purchase_request", { request_id: req.id });
+      if (rpcErr) throw rpcErr;
       fetchAll();
       if (session) loadOwnProfile(session.user.id);
     } catch (e) {
-      setError("Konnte nicht storniert werden.");
+      setError("Konnte nicht storniert werden: " + (e?.message || "unbekannter Fehler"));
     } finally { setRequestActionId(null); }
   }
 
