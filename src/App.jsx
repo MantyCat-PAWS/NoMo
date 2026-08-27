@@ -33,20 +33,32 @@ const PROFILE_COLORS = [
   { id: "plum", hex: "#6B4A5E" },
 ];
 const COLORS = {
-  ink: "#211C14",
-  paper: "#F6F1E6",
+  ink: "#1B211D",
+  paper: "#F1F2EE",
   card: "#FFFFFF",
-  moss: "#3E4A34",
-  mossDark: "#2A3324",
-  lime: "#A9822F",
-  rust: "#8C5636",
-  stone: "#E3DAC4",
-  hairline: "#E7E0CE",
-  muted: "#7A7263",
+  moss: "#146241",
+  mossDark: "#0F4A31",
+  lime: "#1B8A4A",
+  rust: "#C0392B",
+  stone: "#E1E4DE",
+  hairline: "#DEE2DA",
+  muted: "#6E7469",
 };
 const CATS = [
-  { id: "sache", label: "Sachen", physical: true },
-  { id: "dienstleistung", label: "Dienstleistungen", physical: false },
+  { id: "mode_beauty", label: "Mode & Beauty", icon: "👗", physical: true },
+  { id: "elektronik", label: "Elektronik & Technik", icon: "📱", physical: true },
+  { id: "multimedia_gaming", label: "Multimedia & Gaming", icon: "🎮", physical: true },
+  { id: "haus_garten", label: "Haus & Garten", icon: "🏡", physical: true },
+  { id: "moebel", label: "Möbel & Wohnen", icon: "🛋️", physical: true },
+  { id: "werkzeug_bau", label: "Werkzeug & Bau", icon: "🔧", physical: true },
+  { id: "freizeit_hobby", label: "Freizeit & Hobby", icon: "🎨", physical: true },
+  { id: "sport", label: "Sport & Outdoor", icon: "⚽", physical: true },
+  { id: "kind_baby", label: "Kind & Baby", icon: "🍼", physical: true },
+  { id: "tiere", label: "Tiere & Tierbedarf", icon: "🐾", physical: true },
+  { id: "musik_buecher", label: "Musik, Filme & Bücher", icon: "📚", physical: true },
+  { id: "sammeln", label: "Sammeln & Antiquitäten", icon: "🏺", physical: true },
+  { id: "sonstiges", label: "Sonstiges", icon: "📦", physical: true },
+  { id: "dienstleistung", label: "Dienstleistungen", icon: "🛠️", physical: false },
 ];
 const LISTING_TYPES = [
   { id: "biete", label: "Biete" },
@@ -215,7 +227,7 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
         </div>
       )}
       <div style={styles.badgeRow}>
-        <span style={styles.catBadge}>{info.label}</span>
+        <span style={styles.catBadge}>{info.icon} {info.label}</span>
         {info.physical && (
           <span style={item.ships === false ? styles.pickupBadge : styles.shipBadge}>
             {item.ships === false ? "Nur Abholung" : "Versand möglich"}
@@ -1689,7 +1701,7 @@ export default function App() {
               <div style={styles.filterLabel}>Kategorie</div>
               <div style={styles.sidebarTabsCol}>
                 {["alle", ...CATS.map((c) => c.id)].map((f) => (
-                  <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.sidebarTab, ...(catFilter === f ? styles.sidebarTabActive : {}) }}>{f === "alle" ? "Alle" : catInfo(f).label}</button>
+                  <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.sidebarTab, ...(catFilter === f ? styles.sidebarTabActive : {}) }}>{f === "alle" ? "Alle" : `${catInfo(f).icon} ${catInfo(f).label}`}</button>
                 ))}
               </div>
             </div>
@@ -1724,7 +1736,7 @@ export default function App() {
               <label style={styles.label}>
                 Kategorie
                 <select className="mc-input" style={styles.input} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                  {CATS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  {CATS.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
                 </select>
               </label>
             </div>
