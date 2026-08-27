@@ -654,6 +654,7 @@ function SavedSearchesSection({ searches, onApply, onDelete }) {
 
 function VerificationRequestRow({ profile, onApprove, onReject, busy }) {
   const [signedUrl, setSignedUrl] = useState(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   useEffect(() => {
     let active = true;
     if (profile.verification_file_path) {
@@ -666,11 +667,21 @@ function VerificationRequestRow({ profile, onApprove, onReject, busy }) {
   return (
     <div style={styles.reportRow}>
       <div><b>{profile.display_name}</b> hat einen Ausweis zur Verifizierung eingereicht.</div>
-      {signedUrl && <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumb} />}
+      {signedUrl && (
+        <button type="button" style={styles.verifyThumbBtn} onClick={() => setLightboxOpen(true)} title="Zum Vergrößern anklicken">
+          <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumb} />
+        </button>
+      )}
       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
         <button style={styles.smallBtn} disabled={busy} onClick={() => onApprove(profile)}>Verifizieren (+5 {CURRENCY})</button>
         <button style={styles.smallBtnGhost} disabled={busy} onClick={() => onReject(profile)}>Ablehnen</button>
       </div>
+      {lightboxOpen && signedUrl && (
+        <div style={styles.lightboxOverlay} onClick={() => setLightboxOpen(false)}>
+          <img src={signedUrl} alt="Eingereichter Ausweis, vergrößert" style={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
+          <button type="button" style={styles.lightboxClose} onClick={() => setLightboxOpen(false)} aria-label="Schließen">✕</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1215,14 +1226,15 @@ export default function App() {
     setVerificationActionId(p.id);
     setError(null);
     try {
-      await supabase.from("profiles").update({
+      const { error: updErr } = await supabase.from("profiles").update({
         verified: true, verification_status: "verified", verification_file_path: null, balance: (p.balance || 0) + 5,
       }).eq("id", p.id);
+      if (updErr) throw updErr;
       if (p.verification_file_path) await supabase.storage.from("id-verification").remove([p.verification_file_path]);
       fetchAll();
       if (session && p.id === session.user.id) loadOwnProfile(session.user.id);
     } catch (e) {
-      setError("Verifizierung konnte nicht bestätigt werden.");
+      setError("Verifizierung konnte nicht bestätigt werden: " + (e?.message || "unbekannter Fehler"));
     } finally { setVerificationActionId(null); }
   }
 
@@ -1230,11 +1242,12 @@ export default function App() {
     setVerificationActionId(p.id);
     setError(null);
     try {
-      await supabase.from("profiles").update({ verification_status: "rejected", verification_file_path: null }).eq("id", p.id);
+      const { error: updErr } = await supabase.from("profiles").update({ verification_status: "rejected", verification_file_path: null }).eq("id", p.id);
+      if (updErr) throw updErr;
       if (p.verification_file_path) await supabase.storage.from("id-verification").remove([p.verification_file_path]);
       fetchAll();
     } catch (e) {
-      setError("Ablehnung konnte nicht gespeichert werden.");
+      setError("Ablehnung konnte nicht gespeichert werden: " + (e?.message || "unbekannter Fehler"));
     } finally { setVerificationActionId(null); }
   }
 
@@ -1489,10 +1502,11 @@ export default function App() {
 
   async function blockUser(report) {
     try {
-      await supabase.from("profiles").update({ blocked: true }).eq("id", report.rated_id);
+      const { error: updErr } = await supabase.from("profiles").update({ blocked: true }).eq("id", report.rated_id);
+      if (updErr) throw updErr;
       await supabase.from("ratings").update({ resolved: true }).eq("id", report.id);
       fetchAll();
-    } catch (e) { setError("Konnte Nutzer nicht sperren."); }
+    } catch (e) { setError("Konnte Nutzer nicht sperren: " + (e?.message || "unbekannter Fehler")); }
   }
   async function dismissReport(report) {
     try {
@@ -2229,6 +2243,10 @@ const styles = {
   verifyPending: { fontSize: 13, color: COLORS.muted, fontStyle: "italic" },
   verifyRejected: { fontSize: 13, color: COLORS.rust, marginBottom: 10 },
   verifyThumb: { width: 220, maxWidth: "100%", borderRadius: 8, border: `1px solid ${COLORS.hairline}`, display: "block", marginBottom: 8 },
+  verifyThumbBtn: { background: "none", border: "none", padding: 0, cursor: "zoom-in", display: "block" },
+  lightboxOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, cursor: "zoom-out", padding: 24 },
+  lightboxImg: { maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", cursor: "default" },
+  lightboxClose: { position: "fixed", top: 20, right: 24, background: "none", border: "none", color: "#fff", fontSize: 28, cursor: "pointer", lineHeight: 1 },
   ticketFooterMeta: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted },
   badgeRow: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
   catBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.muted, background: COLORS.paper, padding: "4px 9px", borderRadius: 20 },
