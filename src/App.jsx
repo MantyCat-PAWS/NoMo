@@ -885,9 +885,12 @@ function relativeTime(iso) {
   return new Date(iso).toLocaleDateString("de-AT");
 }
 
-function AdminUserRow({ p, everReported, onSendMessage, sending }) {
+function AdminUserRow({ p, everReported, onSendMessage, sending, onAdjustBalance, adjusting }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustNote, setAdjustNote] = useState("");
   const verifyLabel = p.verified ? "✓ verifiziert" : p.verification_status === "pending" ? "Verifizierung ausstehend" : "nicht verifiziert";
   return (
     <div style={styles.adminUserRow}>
@@ -897,8 +900,10 @@ function AdminUserRow({ p, everReported, onSendMessage, sending }) {
         {everReported && <span title="Wurde schonmal gemeldet" style={styles.warnIcon}>⚠️</span>}
         {p.blocked && <span style={styles.wishChipReadonly}>gesperrt</span>}
         <span style={styles.convListItem}>{verifyLabel}</span>
+        <span style={styles.convListItem}>Guthaben: {p.balance ?? 0} {CURRENCY}</span>
         <span style={styles.convListItem}>Zuletzt aktiv: {relativeTime(p.last_seen_at)}</span>
         <button type="button" style={styles.smallBtnGhost} onClick={() => setOpen((o) => !o)}>{open ? "Abbrechen" : "Nachricht senden"}</button>
+        <button type="button" style={styles.smallBtnGhost} onClick={() => setAdjustOpen((o) => !o)}>{adjustOpen ? "Abbrechen" : `${CURRENCY} zuteilen`}</button>
       </div>
       {open && (
         <div style={styles.wishRow}>
@@ -913,11 +918,27 @@ function AdminUserRow({ p, everReported, onSendMessage, sending }) {
           </div>
         </div>
       )}
+      {adjustOpen && (
+        <div style={styles.adjustBox}>
+          <label style={styles.label}>
+            Betrag (negativ für Abzug)
+            <input className="mc-input" style={styles.input} type="number" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} placeholder={"z. B. 5, oder -3"} />
+          </label>
+          <label style={styles.label}>
+            Nachricht dazu (optional, wird als Chatnachricht mitgeschickt)
+            <input className="mc-input" style={styles.input} value={adjustNote} onChange={(e) => setAdjustNote(e.target.value)} placeholder="z. B. Entschädigung für gemeldeten Vorfall" />
+          </label>
+          <button type="button" style={styles.smallBtn} disabled={!adjustAmount || Number(adjustAmount) === 0 || adjusting}
+            onClick={() => { onAdjustBalance(p.id, Math.round(Number(adjustAmount)), adjustNote.trim()); setAdjustAmount(""); setAdjustNote(""); setAdjustOpen(false); }}>
+            {adjusting ? "…" : `${CURRENCY} anpassen`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, topSearchTerms, topListingWords }) {
+function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -938,7 +959,7 @@ function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing,
       <h2 style={{ ...styles.profileSectionTitle, marginTop: 32 }}>Nutzer-Übersicht</h2>
       <div style={styles.convList}>
         {users.map((p) => (
-          <AdminUserRow key={p.id} p={p} everReported={reportedUserIds.has(p.id)} onSendMessage={onSendMessage} sending={messageSendingId === p.id} />
+          <AdminUserRow key={p.id} p={p} everReported={reportedUserIds.has(p.id)} onSendMessage={onSendMessage} sending={messageSendingId === p.id} onAdjustBalance={onAdjustBalance} adjusting={balanceAdjustingId === p.id} />
         ))}
       </div>
 
@@ -1221,7 +1242,39 @@ function FaqItem({ q, children }) {
   );
 }
 
-function FaqPage() {
+function FaqContactForm({ session, onSend, sending }) {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  if (!session) {
+    return (
+      <div style={styles.verifyBox}>
+        <h2 style={styles.profileSectionTitle}>Frage nicht dabei?</h2>
+        <p style={styles.legalP}>Melde dich an, um der Admin direkt eine Nachricht zu schicken.</p>
+      </div>
+    );
+  }
+  if (sent) {
+    return (
+      <div style={styles.verifyBox}>
+        <h2 style={styles.profileSectionTitle}>Frage nicht dabei?</h2>
+        <p style={styles.legalP}>✓ Deine Nachricht wurde gesendet. Die Antwort findest du unter "Nachrichten".</p>
+      </div>
+    );
+  }
+  return (
+    <div style={styles.verifyBox}>
+      <h2 style={styles.profileSectionTitle}>Frage nicht dabei?</h2>
+      <p style={styles.legalP}>Schick deine Frage direkt an die Admin, die Antwort bekommst du unter "Nachrichten".</p>
+      <textarea className="mc-input" style={{ ...styles.input, minHeight: 70, resize: "vertical" }} value={text} onChange={(e) => setText(e.target.value)} placeholder="Deine Frage…" />
+      <button type="button" className="mc-btn" style={{ ...styles.primaryBtn, marginTop: 10 }} disabled={!text.trim() || sending}
+        onClick={async () => { const ok = await onSend(text.trim()); if (ok) { setSent(true); setText(""); } }}>
+        {sending ? "Wird gesendet…" : "Frage senden"}
+      </button>
+    </div>
+  );
+}
+
+function FaqPage({ session, onSendQuestion, sendingQuestion }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -1292,7 +1345,11 @@ function FaqPage() {
         <p style={styles.legalP}>In der Nachrichten-Übersicht zeigt eine rote Zahl an jeder Unterhaltung, wie viele ungelesene Nachrichten dort warten.</p>
       </FaqItem>
 
-      <p style={{ ...styles.legalP, marginTop: 28 }}>
+      <div style={{ marginTop: 28 }}>
+        <FaqContactForm session={session} onSend={onSendQuestion} sending={sendingQuestion} />
+      </div>
+
+      <p style={{ ...styles.legalP, marginTop: 20 }}>
         Rechtliche Details findest du im <a href="#impressum" style={styles.footerLink}>Impressum</a>, in den <a href="#agb" style={styles.footerLink}>AGB</a> und in der <a href="#datenschutz" style={styles.footerLink}>Datenschutzerklärung</a>.
       </p>
     </div>
@@ -1362,6 +1419,8 @@ export default function App() {
   const [replyDrafts, setReplyDrafts] = useState({});
   const [replySendingKey, setReplySendingKey] = useState(null);
   const [messageSendingId, setMessageSendingId] = useState(null);
+  const [balanceAdjustingId, setBalanceAdjustingId] = useState(null);
+  const [sendingQuestion, setSendingQuestion] = useState(false);
 
   const [catFilter, setCatFilter] = useState("alle");
   const [typeFilter, setTypeFilter] = useState("biete");
@@ -2228,6 +2287,51 @@ export default function App() {
     } finally { setMessageSendingId(null); }
   }
 
+  async function sendQuestionToAdmin(text) {
+    if (!session || !text.trim()) return false;
+    setSendingQuestion(true);
+    setError(null);
+    try {
+      const { data: adminId, error: rpcErr } = await supabase.rpc("get_admin_user_id");
+      if (rpcErr) throw rpcErr;
+      if (!adminId) throw new Error("Admin-Konto konnte nicht gefunden werden");
+      const key = convKey(session.user.id, adminId, null);
+      const { error: insErr } = await supabase.from("messages").insert({
+        conv_key: key, from_id: session.user.id, to_id: adminId, item_id: null, item_title: null, text: text.trim(),
+      });
+      if (insErr) throw insErr;
+      fetchMessages(session.user.id);
+      return true;
+    } catch (e) {
+      setError("Frage konnte nicht gesendet werden: " + (e?.message || "unbekannter Fehler"));
+      return false;
+    } finally { setSendingQuestion(false); }
+  }
+
+  async function adjustUserBalance(userId, amount, note) {
+    if (!session || !amount) return;
+    setBalanceAdjustingId(userId);
+    setError(null);
+    try {
+      const { data: row, error: selErr } = await supabase.from("profiles").select("balance").eq("id", userId).single();
+      if (selErr) throw selErr;
+      const { error: updErr } = await supabase.from("profiles").update({ balance: (row?.balance || 0) + amount }).eq("id", userId);
+      if (updErr) throw updErr;
+      if (note) {
+        const key = convKey(session.user.id, userId, null);
+        const sign = amount > 0 ? "+" : "";
+        await supabase.from("messages").insert({
+          conv_key: key, from_id: session.user.id, to_id: userId, item_id: null, item_title: null,
+          text: `${note} (${sign}${amount} ${CURRENCY} von der Admin gutgeschrieben)`,
+        });
+        fetchMessages(session.user.id);
+      }
+      fetchAll();
+    } catch (e) {
+      setError(CURRENCY + " konnten nicht angepasst werden: " + (e?.message || "unbekannter Fehler"));
+    } finally { setBalanceAdjustingId(null); }
+  }
+
   const visible = listings
     .filter((l) => {
       if (l.status === "vergeben") return false;
@@ -2346,7 +2450,7 @@ export default function App() {
       ) : page === "profil" && session && profile ? (
         <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} myAddress={myAddress} onSaveAddress={saveMyAddress} addressSaving={addressSaving} />
       ) : page === "faq" ? (
-        <FaqPage />
+        <FaqPage session={session} onSendQuestion={sendQuestionToAdmin} sendingQuestion={sendingQuestion} />
       ) : page.startsWith("user-") ? (
         <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
       ) : page === "admin" && isAdmin ? (
@@ -2363,6 +2467,8 @@ export default function App() {
           reportedUserIds={reportedUserIds}
           onSendMessage={sendAdminMessage}
           messageSendingId={messageSendingId}
+          onAdjustBalance={adjustUserBalance}
+          balanceAdjustingId={balanceAdjustingId}
           topSearchTerms={topSearchTerms}
           topListingWords={topListingWords}
         />
@@ -2768,6 +2874,7 @@ const styles = {
   adminBox: { maxWidth: 700, margin: "24px auto 0", background: "#FCE9E1", border: `2px solid ${COLORS.rust}`, borderRadius: 8, padding: "16px 18px" },
   adminTitle: { fontFamily: "'Inter', sans-serif", fontSize: 18, margin: "0 0 10px", color: COLORS.rust },
   adminUserRow: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: "10px 12px", marginBottom: 8 },
+  adjustBox: { display: "flex", flexDirection: "column", gap: 8, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${COLORS.hairline}` },
   adminUserMain: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontFamily: "'Inter', sans-serif", fontSize: 13 },
   warnIcon: { fontSize: 13 },
   reportRow: { padding: "10px 0", borderTop: `1px solid ${COLORS.rust}55`, fontSize: 13.5, lineHeight: 1.5 },
