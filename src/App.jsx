@@ -1330,7 +1330,7 @@ export default function App() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    if (["nachrichten", "profil", "meldungen"].includes(page)) window.location.hash = "";
+    window.location.hash = "";
   }
 
   async function saveProfile(newProfile) {
