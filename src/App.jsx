@@ -1259,7 +1259,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", category: "sache", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+  const [form, setForm] = useState({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [editingListingId, setEditingListingId] = useState(null);
@@ -1733,7 +1733,7 @@ export default function App() {
         if (insErr) throw insErr;
       }
 
-      setForm({ title: "", category: "sache", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+      setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
       setImageFiles([]);
       setImagePreviews([]);
       setExistingImageUrls([]);
@@ -1777,7 +1777,7 @@ export default function App() {
     setExistingImageUrls([]);
     setImageFiles([]);
     setImagePreviews([]);
-    setForm({ title: "", category: "sache", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+    setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   }
 
 
