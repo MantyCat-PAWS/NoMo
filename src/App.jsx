@@ -1669,7 +1669,7 @@ export default function App() {
       <section style={styles.hero}>
         <img src={HERO_MONSTER} alt="" className="mc-hero-monster" style={styles.heroMonster} />
         <h1 className="mc-hero-title" style={styles.heroTitle}>No Money.<br />No More Waste.</h1>
-        <p style={styles.heroSub}>Biete an oder frag nach, verdiene {CURRENCY} fürs Teilen, oder tausche direkt eins zu eins.</p>
+        <p style={styles.heroSub}>Tausche deinen Kram direkt oder gegen {CURRENCY}.<br />Kein Geld – Kein Drama – Eat the Rich.</p>
         <a href="#angebote" className="mc-btn" style={styles.heroCta}>Zettel durchstöbern ↓</a>
       </section>
 
