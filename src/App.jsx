@@ -1835,6 +1835,7 @@ export default function App() {
       <style>{`
         * { box-sizing: border-box; }
         body { margin: 0; }
+        button, input, textarea, select { font: inherit; color: inherit; }
         ::selection { background: ${COLORS.lime}; color: ${COLORS.ink}; }
         .mc-btn { transition: transform .15s ease, box-shadow .15s ease; }
         .mc-btn:hover { transform: translateY(-2px); }
