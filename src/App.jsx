@@ -324,13 +324,13 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
       )}
       {showRating && <RatingWidget item={item} onSubmit={onRate} submitting={ratingSubmitting} />}
       <div style={styles.ticketFooter}>
-        <span style={styles.ticketSignature}>
+        <button type="button" style={styles.ticketSignature} onClick={() => { window.location.hash = `user-${item.owner_id}`; }}>
           {item.owner_avatar && avatarSrc(item.owner_avatar) && <img src={avatarSrc(item.owner_avatar)} alt="" style={styles.avatarImgTiny} />}
           <span style={item.owner_verified ? styles.ownerNameVerified : styles.ownerNameUnverified} title={item.owner_verified ? "Ausweis-verifiziertes Profil" : "Nicht verifiziertes Profil"}>
             {item.owner_display_name}
           </span>
           {item.owner_verified && <span style={styles.verifiedBadge} title="Ausweis verifiziert">✓</span>}
-        </span>
+        </button>
         <span style={styles.ticketFooterMeta}>{item.location} · #{item.code}</span>
       </div>
     </div>
@@ -372,6 +372,19 @@ function ProfileEditor({ profile, onSave, saving }) {
   const [avatar, setAvatar] = useState(profile.avatar || "0");
   const [motto, setMotto] = useState(profile.motto || "");
   const [bio, setBio] = useState(profile.bio || "");
+  const [wishlist, setWishlist] = useState(profile.wishlist || []);
+  const [wishDraft, setWishDraft] = useState("");
+
+  function addWish() {
+    const v = wishDraft.trim();
+    if (!v || wishlist.length >= 20) return;
+    setWishlist((w) => [...w, v]);
+    setWishDraft("");
+  }
+  function removeWish(i) {
+    setWishlist((w) => w.filter((_, idx) => idx !== i));
+  }
+
   return (
     <div style={styles.profileForm}>
       <div style={styles.label}>Avatar</div>
@@ -390,8 +403,26 @@ function ProfileEditor({ profile, onSave, saving }) {
         Über mich
         <textarea className="mc-input" style={{ ...styles.input, minHeight: 60, resize: "vertical" }} value={bio} maxLength={200} onChange={(e) => setBio(e.target.value)} placeholder="Ein, zwei Sätze über dich" />
       </label>
+      <div style={styles.label}>
+        Würde ich gegen tauschen
+        <div style={styles.legalP}>Zeig anderen, wonach du suchst — z. B. "Pflanzenableger", "Kinderbücher", "Bastelmaterial".</div>
+      </div>
+      <div style={styles.wishRow}>
+        <input className="mc-input" style={{ ...styles.input, flex: 1 }} value={wishDraft} maxLength={40}
+          onChange={(e) => setWishDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addWish(); } }}
+          placeholder="z. B. Pflanzenableger" />
+        <button type="button" style={styles.smallBtn} disabled={!wishDraft.trim() || wishlist.length >= 20} onClick={addWish}>Hinzufügen</button>
+      </div>
+      {wishlist.length > 0 && (
+        <div style={styles.wishChipRow}>
+          {wishlist.map((w, i) => (
+            <span key={i} style={styles.wishChip}>{w} <button type="button" style={styles.wishChipX} onClick={() => removeWish(i)} aria-label="Entfernen">×</button></span>
+          ))}
+        </div>
+      )}
       <button type="button" className="mc-btn" style={styles.primaryBtn} disabled={saving}
-        onClick={() => onSave({ avatar, motto: motto.trim(), bio: bio.trim() })}>
+        onClick={() => onSave({ avatar, motto: motto.trim(), bio: bio.trim(), wishlist })}>
         {saving ? "Wird gespeichert…" : "Profil speichern"}
       </button>
     </div>
@@ -721,6 +752,62 @@ function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, on
           <span style={styles.unreadBadge}>{it.kindLabel}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+function PublicProfilePage({ userId, profilesById, listings, onViewListing }) {
+  const owner = profilesById[userId];
+  const ownerListings = listings.filter((l) => l.owner_id === userId && l.status !== "vergeben");
+  if (!owner) {
+    return (
+      <div style={styles.legalPage}>
+        <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+        <p style={styles.legalP}>Dieses Profil konnte nicht gefunden werden.</p>
+      </div>
+    );
+  }
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+      <div style={styles.publicProfileHead}>
+        {owner.avatar && avatarSrc(owner.avatar) && <img src={avatarSrc(owner.avatar)} alt="" style={styles.publicProfileAvatar} />}
+        <div>
+          <h1 style={styles.legalTitle}>
+            <span style={owner.verified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{owner.display_name}</span>
+            {owner.verified && <span style={styles.verifiedBadge} title="Ausweis verifiziert">✓</span>}
+          </h1>
+          {owner.motto && <p style={{ ...styles.legalP, marginTop: -8 }}>{owner.motto}</p>}
+        </div>
+      </div>
+      {owner.bio && <p style={styles.legalP}>{owner.bio}</p>}
+      {owner.wishlist && owner.wishlist.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <h2 style={styles.profileSectionTitle}>Würde gegen tauschen</h2>
+          <div style={styles.wishChipRow}>
+            {owner.wishlist.map((w, i) => <span key={i} style={styles.wishChipReadonly}>{w}</span>)}
+          </div>
+        </div>
+      )}
+      <h2 style={styles.profileSectionTitle}>Zettel von {owner.display_name}</h2>
+      {ownerListings.length === 0 ? (
+        <div style={styles.inboxEmpty}>Aktuell keine aktiven Zettel.</div>
+      ) : (
+        <div style={styles.completedList}>
+          {ownerListings.map((l) => (
+            <div key={l.id} style={styles.completedRow}>
+              {l.image_url && <img src={l.image_url} alt={l.title} style={styles.completedImg} />}
+              <button style={styles.completedClickable} onClick={() => onViewListing(l)}>
+                <div style={styles.completedTitle}>{l.title}</div>
+                <div style={styles.completedMeta}>
+                  {l.listing_type === "suche" ? "Suche" : "Biete"} · {catInfo(l.category).label}
+                  {l.listing_type !== "suche" ? ` · ${l.price} ${l.price === 1 ? CURRENCY_SINGULAR : CURRENCY}` : ""}
+                </div>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1806,6 +1893,8 @@ export default function App() {
         />
       ) : page === "profil" && session && profile ? (
         <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} />
+      ) : page.startsWith("user-") ? (
+        <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
       ) : page === "meldungen" && isAdmin ? (
         <div style={styles.legalPage}>
           <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -2180,6 +2269,13 @@ const styles = {
   profileTitle: { fontFamily: "'Inter', sans-serif", fontSize: 20, margin: "0 0 12px" },
   profileSectionTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 24, fontWeight: 600, margin: "0 0 12px", color: COLORS.lime },
   profileForm: { display: "flex", flexDirection: "column", gap: 12 },
+  wishRow: { display: "flex", gap: 8 },
+  wishChipRow: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  wishChip: { display: "inline-flex", alignItems: "center", gap: 6, background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 20, padding: "5px 6px 5px 12px", fontSize: 12.5, fontFamily: "'Inter', sans-serif", color: COLORS.ink },
+  wishChipX: { background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 4px" },
+  wishChipReadonly: { display: "inline-block", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 20, padding: "5px 14px", fontSize: 12.5, fontFamily: "'Inter', sans-serif", color: COLORS.ink },
+  publicProfileHead: { display: "flex", alignItems: "center", gap: 16, marginBottom: 12 },
+  publicProfileAvatar: { width: 64, height: 64, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
   avatarRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   avatarBtn: { fontSize: 20, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer" },
   avatarBtnActive: { border: `1.5px solid ${COLORS.ink}`, background: COLORS.lime },
@@ -2269,7 +2365,7 @@ const styles = {
   galleryThumb: { width: 36, height: 36, objectFit: "cover", borderRadius: 3, border: `1.5px solid ${COLORS.stone}`, cursor: "pointer", opacity: 0.7 },
   galleryThumbActive: { borderColor: COLORS.ink, opacity: 1 },
   ticketFooter: { marginTop: "auto", paddingTop: 12, borderTop: `1px solid ${COLORS.hairline}`, display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 },
-  ticketSignature: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 13, color: COLORS.ink },
+  ticketSignature: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 13, color: COLORS.ink, background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 },
   ownerNameVerified: { color: COLORS.lime, fontWeight: 600 },
   ownerNameUnverified: { color: COLORS.muted },
   verifiedBadge: { marginLeft: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 15, height: 15, borderRadius: "50%", background: COLORS.lime, color: "#fff", fontSize: 10, fontWeight: 700 },
