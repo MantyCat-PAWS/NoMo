@@ -1780,8 +1780,7 @@ export default function App() {
       const { error: uploadErr } = await supabase.storage.from("id-verification")
         .upload(path, cleanBlob, { contentType: file.type || "application/octet-stream", upsert: false });
       if (uploadErr) throw uploadErr;
-      const { error: updErr } = await supabase.from("profiles")
-        .update({ verification_status: "pending", verification_file_path: path, verification_submitted_at: new Date().toISOString() }).eq("id", session.user.id);
+      const { error: updErr } = await supabase.rpc("submit_verification_request", { file_path: path });
       if (updErr) throw updErr;
       setProfile((p) => ({ ...p, verification_status: "pending", verification_file_path: path }));
       fetchAll();
@@ -1794,9 +1793,7 @@ export default function App() {
     setVerificationActionId(p.id);
     setError(null);
     try {
-      const { error: updErr } = await supabase.from("profiles").update({
-        verified: true, verification_status: "verified", verification_file_path: null, balance: (p.balance || 0) + 5,
-      }).eq("id", p.id);
+      const { error: updErr } = await supabase.rpc("admin_approve_verification", { target_id: p.id });
       if (updErr) throw updErr;
       if (p.verification_file_path) await supabase.storage.from("id-verification").remove([p.verification_file_path]);
       fetchAll();
@@ -1810,7 +1807,7 @@ export default function App() {
     setVerificationActionId(p.id);
     setError(null);
     try {
-      const { error: updErr } = await supabase.from("profiles").update({ verification_status: "rejected", verification_file_path: null }).eq("id", p.id);
+      const { error: updErr } = await supabase.rpc("admin_reject_verification", { target_id: p.id });
       if (updErr) throw updErr;
       if (p.verification_file_path) await supabase.storage.from("id-verification").remove([p.verification_file_path]);
       fetchAll();
@@ -2134,7 +2131,7 @@ export default function App() {
 
   async function blockUser(report) {
     try {
-      const { error: updErr } = await supabase.from("profiles").update({ blocked: true }).eq("id", report.rated_id);
+      const { error: updErr } = await supabase.rpc("admin_block_user", { target_id: report.rated_id });
       if (updErr) throw updErr;
       await supabase.from("ratings").update({ resolved: true }).eq("id", report.id);
       fetchAll();
@@ -2313,10 +2310,8 @@ export default function App() {
     setBalanceAdjustingId(userId);
     setError(null);
     try {
-      const { data: row, error: selErr } = await supabase.from("profiles").select("balance").eq("id", userId).single();
-      if (selErr) throw selErr;
-      const { error: updErr } = await supabase.from("profiles").update({ balance: (row?.balance || 0) + amount }).eq("id", userId);
-      if (updErr) throw updErr;
+      const { error: rpcErr } = await supabase.rpc("admin_adjust_balance", { target_id: userId, amount });
+      if (rpcErr) throw rpcErr;
       if (note) {
         const key = convKey(session.user.id, userId, null);
         const sign = amount > 0 ? "+" : "";
