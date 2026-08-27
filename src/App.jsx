@@ -760,6 +760,97 @@ function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, on
   );
 }
 
+function relativeTime(iso) {
+  if (!iso) return "noch nie aktiv";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "gerade eben";
+  if (min < 60) return `vor ${min} Min.`;
+  const hrs = Math.floor(min / 60);
+  if (hrs < 24) return `vor ${hrs} Std.`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `vor ${days} Tag${days === 1 ? "" : "en"}`;
+  return new Date(iso).toLocaleDateString("de-AT");
+}
+
+function AdminUserRow({ p, everReported, onSendMessage, sending }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const verifyLabel = p.verified ? "✓ verifiziert" : p.verification_status === "pending" ? "Verifizierung ausstehend" : "nicht verifiziert";
+  return (
+    <div style={styles.adminUserRow}>
+      <div style={styles.adminUserMain}>
+        {p.avatar && avatarSrc(p.avatar) && <img src={avatarSrc(p.avatar)} alt="" style={styles.avatarImgTiny} />}
+        <a href={`#user-${p.id}`} style={p.verified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{p.display_name}</a>
+        {everReported && <span title="Wurde schonmal gemeldet" style={styles.warnIcon}>⚠️</span>}
+        {p.blocked && <span style={styles.wishChipReadonly}>gesperrt</span>}
+        <span style={styles.convListItem}>{verifyLabel}</span>
+        <span style={styles.convListItem}>Zuletzt aktiv: {relativeTime(p.last_seen_at)}</span>
+        <button type="button" style={styles.smallBtnGhost} onClick={() => setOpen((o) => !o)}>{open ? "Abbrechen" : "Nachricht senden"}</button>
+      </div>
+      {open && (
+        <div style={styles.wishRow}>
+          <textarea className="mc-input" style={{ ...styles.input, flex: 1, minHeight: 50, resize: "vertical" }} value={text} onChange={(e) => setText(e.target.value)} placeholder="Nachricht…" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {!p.verified && (
+              <button type="button" style={styles.smallBtnGhost} onClick={() => setText("Hallo! Kleine Erinnerung: Du kannst dein Konto jederzeit mit Ausweis verifizieren lassen (im Profil unter \"Verifizierung\"), das schafft mehr Vertrauen beim Tauschen — und es gibt 5 " + CURRENCY + " dafür. 🙂")}>Verifizierungserinnerung einfügen</button>
+            )}
+            <button type="button" style={styles.smallBtn} disabled={!text.trim() || sending} onClick={() => { onSendMessage(p.id, text.trim()); setText(""); setOpen(false); }}>
+              {sending ? "…" : "Senden"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, topSearchTerms, topListingWords }) {
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+      <h1 style={styles.legalTitle}>Admin</h1>
+
+      <h2 style={styles.profileSectionTitle}>Meldungen</h2>
+      <ReportsInbox
+        items={reportItems}
+        onDismissRating={onDismissRating}
+        onBlockUser={onBlockUser}
+        onRemoveListing={onRemoveListing}
+        onDismissContent={onDismissContent}
+        onApproveVerification={onApproveVerification}
+        onRejectVerification={onRejectVerification}
+        busyId={reportBusyId}
+      />
+
+      <h2 style={{ ...styles.profileSectionTitle, marginTop: 32 }}>Nutzer-Übersicht</h2>
+      <div style={styles.convList}>
+        {users.map((p) => (
+          <AdminUserRow key={p.id} p={p} everReported={reportedUserIds.has(p.id)} onSendMessage={onSendMessage} sending={messageSendingId === p.id} />
+        ))}
+      </div>
+
+      <h2 style={{ ...styles.profileSectionTitle, marginTop: 32 }}>Nutzungs-Übersicht</h2>
+      <div style={styles.tradeSubhead}>Meistgesuchte Begriffe (letzte 200 Suchen)</div>
+      {topSearchTerms.length === 0 ? (
+        <p style={{ fontSize: 13, color: COLORS.muted }}>Noch keine Sucheingaben protokolliert.</p>
+      ) : (
+        <div style={styles.wordCloud}>
+          {topSearchTerms.map(([w, c]) => <span key={w} style={styles.wordChip}>{w} ({c})</span>)}
+        </div>
+      )}
+      <div style={styles.tradeSubhead}>Häufige Wörter in Angeboten (Titel/Beschreibung)</div>
+      {topListingWords.length === 0 ? (
+        <p style={{ fontSize: 13, color: COLORS.muted }}>Noch keine Angebote vorhanden.</p>
+      ) : (
+        <div style={styles.wordCloud}>
+          {topListingWords.map(([w, c]) => <span key={w} style={styles.wordChip}>{w} ({c})</span>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PublicProfilePage({ userId, profilesById, listings, onViewListing }) {
   const owner = profilesById[userId];
   const ownerListings = listings.filter((l) => l.owner_id === userId && l.status !== "vergeben");
@@ -1049,6 +1140,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [replyDrafts, setReplyDrafts] = useState({});
   const [replySendingKey, setReplySendingKey] = useState(null);
+  const [messageSendingId, setMessageSendingId] = useState(null);
 
   const [catFilter, setCatFilter] = useState("alle");
   const [typeFilter, setTypeFilter] = useState("biete");
@@ -1116,6 +1208,7 @@ export default function App() {
         loadOwnProfile(session.user.id);
         fetchMessages(session.user.id);
         fetchUserExtras(session.user.id);
+        supabase.from("profiles").update({ last_seen_at: new Date().toISOString() }).eq("id", session.user.id).then(() => {});
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -1171,6 +1264,20 @@ export default function App() {
     }));
     return [...a, ...b, ...c].sort((x, y) => (y.created_at || "").localeCompare(x.created_at || ""));
   }, [openReports, openContentReports, pendingVerifications, profilesById]);
+
+  const reportedUserIds = useMemo(() => {
+    const s = new Set();
+    ratings.forEach((r) => { if (r.stars === 1) s.add(r.rated_id); });
+    listingReports.forEach((r) => {
+      const owner = listings.find((l) => l.id === r.item_id)?.owner_id;
+      if (owner) s.add(owner);
+    });
+    return s;
+  }, [ratings, listingReports, listings]);
+
+  const adminUsersSorted = useMemo(() => {
+    return Object.values(profilesById).sort((a, b) => (b.last_seen_at || "").localeCompare(a.last_seen_at || ""));
+  }, [profilesById]);
 
   // Sucheingaben protokollieren (leicht verzögert, damit nicht jeder Tastenanschlag gespeichert wird)
   useEffect(() => {
@@ -1786,6 +1893,22 @@ export default function App() {
     } finally { setReplySendingKey(null); }
   }
 
+  async function sendAdminMessage(toId, text) {
+    if (!session || !text.trim()) return;
+    setMessageSendingId(toId);
+    setError(null);
+    try {
+      const key = convKey(session.user.id, toId, null);
+      const { error: insErr } = await supabase.from("messages").insert({
+        conv_key: key, from_id: session.user.id, to_id: toId, item_id: null, item_title: null, text: text.trim(),
+      });
+      if (insErr) throw insErr;
+      fetchMessages(session.user.id);
+    } catch (e) {
+      setError("Nachricht konnte nicht gesendet werden: " + (e?.message || "unbekannter Fehler"));
+    } finally { setMessageSendingId(null); }
+  }
+
   const visible = listings
     .filter((l) => {
       if (l.status === "vergeben") return false;
@@ -1867,8 +1990,8 @@ export default function App() {
           {session ? (
             <span style={styles.whoami}>
               {isAdmin && (
-                <button style={styles.reportPillBtn} onClick={() => { window.location.hash = "meldungen"; }}>
-                  Meldungen {(openReports.length + openContentReports.length + pendingVerifications.length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length})` : ""}
+                <button style={styles.reportPillBtn} onClick={() => { window.location.hash = "admin"; }}>
+                  Admin {(openReports.length + openContentReports.length + pendingVerifications.length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length})` : ""}
                 </button>
               )}
               {profile && (
@@ -1900,21 +2023,23 @@ export default function App() {
         <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} />
       ) : page.startsWith("user-") ? (
         <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
-      ) : page === "meldungen" && isAdmin ? (
-        <div style={styles.legalPage}>
-          <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
-          <h1 style={styles.legalTitle}>Meldungen</h1>
-          <ReportsInbox
-            items={reportItems}
-            onDismissRating={dismissReport}
-            onBlockUser={blockUser}
-            onRemoveListing={removeReportedListing}
-            onDismissContent={dismissContentReport}
-            onApproveVerification={approveVerification}
-            onRejectVerification={rejectVerification}
-            busyId={reportActionId || verificationActionId}
-          />
-        </div>
+      ) : page === "admin" && isAdmin ? (
+        <AdminPage
+          reportItems={reportItems}
+          onDismissRating={dismissReport}
+          onBlockUser={blockUser}
+          onRemoveListing={removeReportedListing}
+          onDismissContent={dismissContentReport}
+          onApproveVerification={approveVerification}
+          onRejectVerification={rejectVerification}
+          reportBusyId={reportActionId || verificationActionId}
+          users={adminUsersSorted}
+          reportedUserIds={reportedUserIds}
+          onSendMessage={sendAdminMessage}
+          messageSendingId={messageSendingId}
+          topSearchTerms={topSearchTerms}
+          topListingWords={topListingWords}
+        />
       ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
@@ -1972,28 +2097,6 @@ export default function App() {
           {error}
           <button style={styles.errorClose} onClick={() => setError(null)}>×</button>
         </div>
-      )}
-
-      {isAdmin && (
-        <section style={styles.tradeSection}>
-          <h2 style={styles.tradeSectionTitle}>Nutzungs-Übersicht</h2>
-          <div style={styles.tradeSubhead}>Meistgesuchte Begriffe (letzte 200 Suchen)</div>
-          {topSearchTerms.length === 0 ? (
-            <p style={{ fontSize: 13, color: COLORS.muted }}>Noch keine Sucheingaben protokolliert.</p>
-          ) : (
-            <div style={styles.wordCloud}>
-              {topSearchTerms.map(([w, c]) => <span key={w} style={styles.wordChip}>{w} ({c})</span>)}
-            </div>
-          )}
-          <div style={styles.tradeSubhead}>Häufige Wörter in Angeboten (Titel/Beschreibung)</div>
-          {topListingWords.length === 0 ? (
-            <p style={{ fontSize: 13, color: COLORS.muted }}>Noch keine Angebote vorhanden.</p>
-          ) : (
-            <div style={styles.wordCloud}>
-              {topListingWords.map(([w, c]) => <span key={w} style={styles.wordChip}>{w} ({c})</span>)}
-            </div>
-          )}
-        </section>
       )}
 
       <section id="angebote" style={styles.board}>
@@ -2322,6 +2425,9 @@ const styles = {
   errorClose: { background: "none", border: "none", color: COLORS.rust, fontSize: 18, cursor: "pointer", lineHeight: 1 },
   adminBox: { maxWidth: 700, margin: "24px auto 0", background: "#FCE9E1", border: `2px solid ${COLORS.rust}`, borderRadius: 8, padding: "16px 18px" },
   adminTitle: { fontFamily: "'Inter', sans-serif", fontSize: 18, margin: "0 0 10px", color: COLORS.rust },
+  adminUserRow: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: "10px 12px", marginBottom: 8 },
+  adminUserMain: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontFamily: "'Inter', sans-serif", fontSize: 13 },
+  warnIcon: { fontSize: 13 },
   reportRow: { padding: "10px 0", borderTop: `1px solid ${COLORS.rust}55`, fontSize: 13.5, lineHeight: 1.5 },
   smallBtnRust: { fontFamily: "'Inter', sans-serif", fontSize: 12, background: COLORS.rust, color: "#fff", border: "none", borderRadius: 5, padding: "6px 12px", cursor: "pointer" },
   smallBtnGhost: { fontFamily: "'Inter', sans-serif", fontSize: 12, background: "transparent", color: COLORS.rust, border: `1px solid ${COLORS.rust}`, borderRadius: 5, padding: "6px 12px", cursor: "pointer" },
