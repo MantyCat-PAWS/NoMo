@@ -440,10 +440,13 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
       <div style={styles.convBox}>
         <button type="button" style={styles.legalBack} onClick={() => setSelectedKey(null)}>← Zurück zur Übersicht</button>
         <div style={styles.convHeadRow}>
-          <div style={styles.convHead}>
-            Mit <b style={selected.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{selected.partnerName}</b>
-            {selected.itemTitle ? <> zu "{selected.itemTitle}"</> : ""}
-          </div>
+          <a href={`#user-${selected.partnerId}`} style={styles.convHeadLink}>
+            {selected.partnerAvatar && avatarSrc(selected.partnerAvatar) && <img src={avatarSrc(selected.partnerAvatar)} alt="" style={styles.avatarImgTiny} />}
+            <div style={styles.convHead}>
+              Mit <b style={selected.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{selected.partnerName}</b>
+              {selected.itemTitle ? <> zu "{selected.itemTitle}"</> : ""}
+            </div>
+          </a>
           <button type="button" style={styles.smallBtnGhost} onClick={() => {
             if (window.confirm("Diese Unterhaltung wirklich löschen? Sie verschwindet dadurch auch bei der anderen Person.")) {
               onDeleteConversation(selected.key);
@@ -482,7 +485,8 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
           <button key={conv.key} type="button" style={styles.convListRow}
             onClick={() => { setSelectedKey(conv.key); if (unread > 0) onMarkRead(conv); }}>
             <div style={styles.convListMain}>
-              <div>
+              <div style={styles.convListNameRow}>
+                {conv.partnerAvatar && avatarSrc(conv.partnerAvatar) && <img src={avatarSrc(conv.partnerAvatar)} alt="" style={styles.avatarImgTiny} />}
                 <span style={conv.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{conv.partnerName}</span>
                 {conv.itemTitle && <span style={styles.convListItem}> · {conv.itemTitle}</span>}
               </div>
@@ -1241,7 +1245,7 @@ export default function App() {
       const key = m.conv_key;
       if (!groups[key]) {
         const partnerId = m.from_id === session.user.id ? m.to_id : m.from_id;
-        groups[key] = { key, partnerId, partnerName: profilesById[partnerId]?.display_name || "?", partnerVerified: profilesById[partnerId]?.verified || false, itemId: m.item_id, itemTitle: m.item_title, messages: [] };
+        groups[key] = { key, partnerId, partnerName: profilesById[partnerId]?.display_name || "?", partnerVerified: profilesById[partnerId]?.verified || false, partnerAvatar: profilesById[partnerId]?.avatar || null, itemId: m.item_id, itemTitle: m.item_title, messages: [] };
       }
       groups[key].messages.push(m);
     });
@@ -2261,8 +2265,8 @@ const styles = {
   heroCta: { display: "inline-block", background: COLORS.lime, color: "#fff", fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14.5, padding: "15px 30px", borderRadius: 999, textDecoration: "none", boxShadow: "0 1px 2px rgba(0,0,0,0.15), 0 10px 24px rgba(0,0,0,0.25)", cursor: "pointer", letterSpacing: "0.01em" },
   authBox: { maxWidth: 440, margin: "8px auto 0", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "24px 26px 26px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", position: "relative", zIndex: 2 },
   authTabs: { display: "flex", gap: 6, marginBottom: 14 },
-  authTab: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "8px 10px", border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer", borderRadius: 5 },
-  authTabActive: { background: COLORS.ink, color: COLORS.paper },
+  authTab: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "8px 10px", border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer", borderRadius: 5 },
+  authTabActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
   authForm: { display: "flex", flexDirection: "column", gap: 12 },
   authError: { fontSize: 13, color: COLORS.rust },
   authInfo: { fontSize: 13, color: COLORS.muted },
@@ -2298,6 +2302,8 @@ const styles = {
   newMatchBadge: { marginLeft: 8, fontFamily: "'Inter', sans-serif", fontSize: 10.5, background: COLORS.rust, color: "#fff", borderRadius: 20, padding: "2px 8px" },
   convBox: { border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: 12, marginBottom: 12 },
   convHeadRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4, flexWrap: "wrap" },
+  convHeadLink: { display: "flex", alignItems: "center", gap: 8, textDecoration: "none" },
+  convListNameRow: { display: "flex", alignItems: "center", gap: 6 },
   convList: { display: "flex", flexDirection: "column", gap: 8 },
   convListRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textAlign: "left", width: "100%", border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: "12px 14px", background: COLORS.card, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   convListMain: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 },
@@ -2380,8 +2386,8 @@ const styles = {
   grayIcon: { filter: "grayscale(1) contrast(0.85) brightness(1.15)", opacity: 0.85 },
   searchBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 10.5, letterSpacing: "0.03em", color: "#fff", background: COLORS.rust, padding: "4px 9px", borderRadius: 20 },
   typeToggleRow: { display: "flex", gap: 8, marginBottom: 4 },
-  typeToggleBtn: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "10px 12px", border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer", borderRadius: 5 },
-  typeToggleBtnActive: { background: COLORS.ink, color: COLORS.paper },
+  typeToggleBtn: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "10px 12px", border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer", borderRadius: 5 },
+  typeToggleBtnActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
   bigTabs: { display: "flex", gap: 8, marginBottom: 16 },
   bigTab: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, padding: "10px 20px", borderRadius: 6, border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer" },
   bigTabActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
