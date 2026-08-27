@@ -1193,8 +1193,13 @@ export default function App() {
     setVerificationUploading(true);
     setError(null);
     try {
-      const path = `${session.user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-      const { error: uploadErr } = await supabase.storage.from("id-verification").upload(path, file);
+      if (file.size === 0) throw new Error("Die ausgewählte Datei scheint leer zu sein. Bitte nochmal auswählen.");
+      const arrayBuffer = await file.arrayBuffer();
+      const cleanBlob = new Blob([arrayBuffer], { type: file.type || "application/octet-stream" });
+      const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+      const path = `${session.user.id}/${Date.now()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("id-verification")
+        .upload(path, cleanBlob, { contentType: file.type || "application/octet-stream", upsert: false });
       if (uploadErr) throw uploadErr;
       const { error: updErr } = await supabase.from("profiles")
         .update({ verification_status: "pending", verification_file_path: path }).eq("id", session.user.id);
