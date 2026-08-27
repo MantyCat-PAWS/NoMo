@@ -1212,6 +1212,93 @@ function DatenschutzPage() {
   );
 }
 
+function FaqItem({ q, children }) {
+  return (
+    <details style={styles.faqItem}>
+      <summary style={styles.faqQuestion}>{q}</summary>
+      <div style={styles.faqAnswer}>{children}</div>
+    </details>
+  );
+}
+
+function FaqPage() {
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+      <h1 style={styles.legalTitle}>Häufige Fragen</h1>
+      <p style={styles.legalP}>Alles rund um NoMo auf einen Blick. Frage anklicken zum Aufklappen.</p>
+
+      <h2 style={styles.profileSectionTitle}>Grundidee &amp; NoMo's</h2>
+      <FaqItem q="Was ist NoMo überhaupt?">
+        <p style={styles.legalP}>NoMo ist eine Tausch- und Verschenk-Plattform: Statt mit echtem Geld zu bezahlen, tauschst du Sachen und Dienstleistungen direkt gegeneinander oder gegen die plattforminterne Verrechnungseinheit "{CURRENCY_SINGULAR}".</p>
+      </FaqItem>
+      <FaqItem q="Was sind NoMo's und wie bekomme ich welche?">
+        <p style={styles.legalP}>{CURRENCY} sind kein echtes Geld und lassen sich nicht kaufen oder in Euro umtauschen. Du bekommst sie ausschließlich gutgeschrieben, wenn jemand deine Anfrage für einen deiner Zettel annimmt (also wenn du selbst etwas anbietest und jemand es erfolgreich bei dir anfordert). Als Faustregel gilt beim Einstellen eines Zettels: 1 {CURRENCY_SINGULAR} ≈ 10 €.</p>
+      </FaqItem>
+      <FaqItem q="Kann ich mit weniger NoMo's bieten, als verlangt wird?">
+        <p style={styles.legalP}>Ja. Bei "Angebot machen" kannst du den vorgeschlagenen Betrag frei nach oben oder unten anpassen. Die anbietende Person sieht dann, dass es ein Verhandlungsangebot ist, und kann annehmen oder ablehnen.</p>
+      </FaqItem>
+      <FaqItem q="Was bedeutet 'Zu verschenken'?">
+        <p style={styles.legalP}>Manche Zettel kosten 0 {CURRENCY} — die kannst du mit einem Klick auf "Kostenlos anfordern" bekommen, ganz ohne Verhandlung.</p>
+      </FaqItem>
+
+      <h2 style={{ ...styles.profileSectionTitle, marginTop: 28 }}>Zettel &amp; Kategorien</h2>
+      <FaqItem q="Was ist der Unterschied zwischen 'Biete' und 'Suche'?">
+        <p style={styles.legalP}>"Biete"-Zettel sind Dinge oder Leistungen, die du anbietest. "Suche"-Zettel sind Gesuche — du zeigst, wonach du Ausschau hältst, andere können sich bei dir melden.</p>
+      </FaqItem>
+      <FaqItem q="Wie funktionieren Dienstleistungen?">
+        <p style={styles.legalP}>Bei der Kategorie "Dienstleistungen" legst du direkt einen Preis pro Stunde in {CURRENCY} fest (keine Euro-Umrechnung). Auf dem Zettel steht dann z. B. "8 {CURRENCY} pro Stunde".</p>
+      </FaqItem>
+      <FaqItem q="Kann ich einen Zettel nachträglich bearbeiten?">
+        <p style={styles.legalP}>Ja, unter "Profil" → "Aktive Zettel" gibt es neben "Löschen" auch "Bearbeiten". Dort lassen sich auch Fotos austauschen oder entfernen.</p>
+      </FaqItem>
+      <FaqItem q="Was bedeutet 'Versand möglich' und 'Nur Abholung'?">
+        <p style={styles.legalP}>Das legt fest, ob ein Artikel verschickt werden kann (dann mit Versandkosten in {CURRENCY}) oder nur persönlich übergeben wird. Bei "Versand möglich" kannst du als Käufer:in beim Anfragen trotzdem "Stattdessen lieber abholen" wählen, um dir die Versandkosten zu sparen.</p>
+      </FaqItem>
+
+      <h2 style={{ ...styles.profileSectionTitle, marginTop: 28 }}>Anfragen, Käuferschutz &amp; Tausch</h2>
+      <FaqItem q="Was passiert, wenn meine Anfrage angenommen wird?">
+        <p style={styles.legalP}>Deine {CURRENCY} werden dir sofort abgezogen und sicher in Verwahrung gehalten (Treuhand/Käuferschutz) — die verkaufende Person bekommt sie nicht sofort. Erst wenn du den Erhalt bestätigst, wird das Guthaben tatsächlich ausgezahlt.</p>
+      </FaqItem>
+      <FaqItem q="Wie lange hat die verkaufende Person Zeit zum Versenden?">
+        <p style={styles.legalP}>5 Tage ab Annahme der Anfrage. Bei Abholung gilt dieselbe Frist für die Bestätigung der Übergabe. Läuft die Frist ab, kannst du stornieren und bekommst deine {CURRENCY} automatisch zurück — das passiert notfalls auch von selbst im Hintergrund.</p>
+      </FaqItem>
+      <FaqItem q="Kann ich statt NoMo's auch direkt tauschen?">
+        <p style={styles.legalP}>Ja, über "Direkt tauschen" kannst du einen deiner eigenen Zettel als Tauschangebot für den Zettel einer anderen Person vorschlagen — ganz ohne {CURRENCY}.</p>
+      </FaqItem>
+      <FaqItem q="Wie kläre ich die Lieferadresse?">
+        <p style={styles.legalP}>Unter "Profil" kannst du einmalig deine Lieferadresse hinterlegen (streng privat gespeichert) und sie danach in jeder Unterhaltung per Klick einfügen, statt sie jedes Mal neu einzutippen.</p>
+      </FaqItem>
+
+      <h2 style={{ ...styles.profileSectionTitle, marginTop: 28 }}>Vertrauen &amp; Sicherheit</h2>
+      <FaqItem q="Was bedeutet der grüne Haken ✓ neben einem Namen?">
+        <p style={styles.legalP}>Das Konto wurde mit Ausweis verifiziert. Das schafft mehr Vertrauen beim Tauschen. Verifizierung ist freiwillig, unter "Profil" → "Verifizierung" einreichbar, und wird mit 5 {CURRENCY} belohnt.</p>
+      </FaqItem>
+      <FaqItem q="Was passiert mit meinem Ausweisfoto?">
+        <p style={styles.legalP}>Es liegt in einem nicht öffentlich zugänglichen Bereich, nur du und die Admin können es sehen. Nach der Prüfung wird es automatisch gelöscht — gespeichert bleibt nur der Status "verifiziert".</p>
+      </FaqItem>
+      <FaqItem q="Wie kann ich ein Angebot oder eine Person melden?">
+        <p style={styles.legalP}>Unter jedem Zettel gibt es einen Link "Angebot melden". Bewertungen mit 1 Stern lösen ebenfalls automatisch eine Meldung an die Admin aus.</p>
+      </FaqItem>
+
+      <h2 style={{ ...styles.profileSectionTitle, marginTop: 28 }}>Profil &amp; Nachrichten</h2>
+      <FaqItem q="Was ist die Wunschliste 'Würde ich gegen tauschen'?">
+        <p style={styles.legalP}>Im Profil kannst du Stichworte eintragen, wonach du suchst (z. B. "Pflanzenableger"). Sie erscheinen auf deiner öffentlichen Profilseite, die andere über einen Klick auf deinen Namen erreichen — dort sehen sie auch alle deine aktiven Zettel.</p>
+      </FaqItem>
+      <FaqItem q="Kann ich Nachrichten löschen?">
+        <p style={styles.legalP}>Ja. Eigene einzelne Nachrichten über das "×" direkt an der Nachricht, ganze Unterhaltungen über den Button oben im Chat. Achtung: Das entfernt die Unterhaltung auch bei der anderen Person, da Nachrichten nur einmal gemeinsam gespeichert werden.</p>
+      </FaqItem>
+      <FaqItem q="Woran erkenne ich ungelesene Nachrichten?">
+        <p style={styles.legalP}>In der Nachrichten-Übersicht zeigt eine rote Zahl an jeder Unterhaltung, wie viele ungelesene Nachrichten dort warten.</p>
+      </FaqItem>
+
+      <p style={{ ...styles.legalP, marginTop: 28 }}>
+        Rechtliche Details findest du im <a href="#impressum" style={styles.footerLink}>Impressum</a>, in den <a href="#agb" style={styles.footerLink}>AGB</a> und in der <a href="#datenschutz" style={styles.footerLink}>Datenschutzerklärung</a>.
+      </p>
+    </div>
+  );
+}
+
 function LegalPage({ page }) {
   const titles = { impressum: "Impressum", agb: "AGB / Nutzungsbedingungen", datenschutz: "Datenschutzerklärung" };
   return (
@@ -2236,10 +2323,14 @@ export default function App() {
               {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
               {!profile && <span style={styles.authError}>Profil konnte nicht geladen werden</span>}
               {profile && <button style={styles.logoutLink} onClick={() => { window.location.hash = "profil"; }}>profil{totalNewSearchMatches > 0 ? ` (${totalNewSearchMatches})` : ""}</button>}
+              <button style={styles.logoutLink} onClick={() => { window.location.hash = "faq"; }}>faq</button>
               <button style={styles.logoutLink} onClick={handleLogout}>abmelden</button>
             </span>
           ) : (
-            <span style={styles.whoami}>nicht angemeldet</span>
+            <span style={styles.whoami}>
+              <button style={styles.logoutLink} onClick={() => { window.location.hash = "faq"; }}>faq</button>
+              nicht angemeldet
+            </span>
           )}
         </div>
       </header>
@@ -2254,6 +2345,8 @@ export default function App() {
         />
       ) : page === "profil" && session && profile ? (
         <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} myAddress={myAddress} onSaveAddress={saveMyAddress} addressSaving={addressSaving} />
+      ) : page === "faq" ? (
+        <FaqPage />
       ) : page.startsWith("user-") ? (
         <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
       ) : page === "admin" && isAdmin ? (
@@ -2584,6 +2677,7 @@ export default function App() {
       <footer style={styles.footer}>
         <div>NoMo, ein Tauschbrett aus Traun. {CURRENCY} sind eine reine Verrechnungswährung ohne echten Geldwert.</div>
         <div style={styles.footerLinks}>
+          <a href="#faq" style={styles.footerLink}>Häufige Fragen</a>
           <a href="#impressum" style={styles.footerLink}>Impressum</a>
           <a href="#agb" style={styles.footerLink}>AGB</a>
           <a href="#datenschutz" style={styles.footerLink}>Datenschutz</a>
@@ -2790,6 +2884,9 @@ const styles = {
   legalBack: { display: "inline-block", marginBottom: 20, fontFamily: "'Inter', sans-serif", fontSize: 13, color: COLORS.moss, textDecoration: "underline" },
   legalTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 36, fontWeight: 600, margin: "0 0 16px", color: COLORS.lime },
   legalNotice: { fontSize: 12.5, color: COLORS.muted, background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 6, padding: "12px 14px", marginBottom: 28, lineHeight: 1.5 },
+  faqItem: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: "10px 14px", marginBottom: 8, background: COLORS.card },
+  faqQuestion: { cursor: "pointer", fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14.5, color: COLORS.ink },
+  faqAnswer: { marginTop: 8 },
   legalH3: { fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 600, margin: "0 0 8px", color: COLORS.moss },
   legalP: { fontSize: 14, lineHeight: 1.6, margin: "0 0 10px", color: COLORS.ink },
   legalUl: { fontSize: 14, lineHeight: 1.6, color: COLORS.ink, paddingLeft: 20, margin: 0 },
