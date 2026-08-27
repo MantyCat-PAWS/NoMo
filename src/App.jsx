@@ -398,30 +398,69 @@ function ProfileEditor({ profile, onSave, saving }) {
   );
 }
 
-function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey }) {
+function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey, onMarkRead, onDeleteMessage, onDeleteConversation }) {
+  const [selectedKey, setSelectedKey] = useState(null);
   if (conversations.length === 0) return <div style={styles.inboxEmpty}>Noch keine Nachrichten.</div>;
-  return (
-    <div>
-      {conversations.map((conv) => (
-        <div key={conv.key} style={styles.convBox}>
-          <div style={styles.convHead}>Mit <b style={conv.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{conv.partnerName}</b>{conv.itemTitle ? <> zu "{conv.itemTitle}"</> : ""}</div>
-          <div style={styles.convMessages}>
-            {conv.messages.map((m) => (
-              <div key={m.id} style={{ ...styles.bubble, ...(m.from_id === userId ? styles.bubbleMine : styles.bubbleTheirs) }}>
-                <div style={styles.bubbleAuthor}>{m.from_id === userId ? "Du" : conv.partnerName}</div>
-                {m.text}
-              </div>
-            ))}
+
+  const selected = conversations.find((c) => c.key === selectedKey);
+
+  if (selected) {
+    return (
+      <div style={styles.convBox}>
+        <button type="button" style={styles.legalBack} onClick={() => setSelectedKey(null)}>← Zurück zur Übersicht</button>
+        <div style={styles.convHeadRow}>
+          <div style={styles.convHead}>
+            Mit <b style={selected.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{selected.partnerName}</b>
+            {selected.itemTitle ? <> zu "{selected.itemTitle}"</> : ""}
           </div>
-          <div style={styles.convReplyRow}>
-            <input className="mc-input" style={{ ...styles.input, flex: 1 }} placeholder="Antworten…"
-              value={replyDrafts[conv.key] || ""} onChange={(e) => onDraftChange(conv.key, e.target.value)} />
-            <button style={styles.smallBtn} disabled={!(replyDrafts[conv.key] || "").trim() || replySendingKey === conv.key} onClick={() => onReply(conv)}>
-              {replySendingKey === conv.key ? "…" : "Senden"}
-            </button>
-          </div>
+          <button type="button" style={styles.smallBtnGhost} onClick={() => {
+            if (window.confirm("Diese Unterhaltung wirklich löschen? Sie verschwindet dadurch auch bei der anderen Person.")) {
+              onDeleteConversation(selected.key);
+              setSelectedKey(null);
+            }
+          }}>Unterhaltung löschen</button>
         </div>
-      ))}
+        <div style={styles.convMessages}>
+          {selected.messages.map((m) => (
+            <div key={m.id} style={{ ...styles.bubble, ...(m.from_id === userId ? styles.bubbleMine : styles.bubbleTheirs) }}>
+              <div style={styles.bubbleAuthor}>{m.from_id === userId ? "Du" : selected.partnerName}</div>
+              {m.text}
+              {m.from_id === userId && (
+                <button type="button" style={styles.msgDeleteBtn} title="Nachricht löschen" onClick={() => onDeleteMessage(m.id)}>×</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={styles.convReplyRow}>
+          <input className="mc-input" style={{ ...styles.input, flex: 1 }} placeholder="Antworten…"
+            value={replyDrafts[selected.key] || ""} onChange={(e) => onDraftChange(selected.key, e.target.value)} />
+          <button style={styles.smallBtn} disabled={!(replyDrafts[selected.key] || "").trim() || replySendingKey === selected.key} onClick={() => onReply(selected)}>
+            {replySendingKey === selected.key ? "…" : "Senden"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.convList}>
+      {conversations.map((conv) => {
+        const unread = conv.messages.filter((m) => m.to_id === userId && !m.read).length;
+        const last = conv.messages[conv.messages.length - 1];
+        return (
+          <button key={conv.key} type="button" style={styles.convListRow}
+            onClick={() => { setSelectedKey(conv.key); if (unread > 0) onMarkRead(conv); }}>
+            <div style={styles.convListMain}>
+              <div>
+                <span style={conv.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{conv.partnerName}</span>
+                {conv.itemTitle && <span style={styles.convListItem}> · {conv.itemTitle}</span>}
+              </div>
+              {last && <div style={styles.convListSnippet}>{last.from_id === userId ? "Du: " : ""}{last.text}</div>}
+            </div>
+            {unread > 0 && <span style={styles.unreadBadge}>{unread}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -430,6 +469,7 @@ function MessagesPage({
   conversations, userId, replyDrafts, onDraftChange, onReply, replySendingKey,
   incomingOffers, outgoingOffers, onAcceptOffer, onDeclineOffer, tradeActionId,
   incomingRequests, outgoingRequests, onAcceptRequest, onDeclineRequest, requestActionId,
+  onMarkRead, onDeleteMessage, onDeleteConversation,
 }) {
   const hasOffers = incomingOffers.length > 0 || outgoingOffers.length > 0;
   const hasRequests = incomingRequests.length > 0 || outgoingRequests.length > 0;
@@ -498,7 +538,7 @@ function MessagesPage({
       )}
 
       {(hasOffers || hasRequests) && <h2 style={styles.profileSectionTitle}>Unterhaltungen</h2>}
-      <Inbox conversations={conversations} userId={userId} replyDrafts={replyDrafts} onDraftChange={onDraftChange} onReply={onReply} replySendingKey={replySendingKey} />
+      <Inbox conversations={conversations} userId={userId} replyDrafts={replyDrafts} onDraftChange={onDraftChange} onReply={onReply} replySendingKey={replySendingKey} onMarkRead={onMarkRead} onDeleteMessage={onDeleteMessage} onDeleteConversation={onDeleteConversation} />
     </div>
   );
 }
@@ -1058,12 +1098,37 @@ export default function App() {
     return messages.filter((m) => m.to_id === session.user.id && !m.read).length;
   }, [messages, session]);
 
-  async function markInboxRead() {
+  async function markConversationRead(conv) {
     if (!session) return;
-    const unread = messages.filter((m) => m.to_id === session.user.id && !m.read);
+    const unread = conv.messages.filter((m) => m.to_id === session.user.id && !m.read);
     if (unread.length === 0) return;
-    await supabase.from("messages").update({ read: true }).in("id", unread.map((m) => m.id));
-    setMessages((prev) => prev.map((m) => (m.to_id === session.user.id ? { ...m, read: true } : m)));
+    const ids = unread.map((m) => m.id);
+    await supabase.from("messages").update({ read: true }).in("id", ids);
+    setMessages((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, read: true } : m)));
+  }
+
+  async function deleteMessage(id) {
+    if (!session) return;
+    setError(null);
+    try {
+      const { error: delErr } = await supabase.from("messages").delete().eq("id", id);
+      if (delErr) throw delErr;
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    } catch (e) {
+      setError("Nachricht konnte nicht gelöscht werden.");
+    }
+  }
+
+  async function deleteConversation(convKey) {
+    if (!session) return;
+    setError(null);
+    try {
+      const { error: delErr } = await supabase.from("messages").delete().eq("conv_key", convKey);
+      if (delErr) throw delErr;
+      setMessages((prev) => prev.filter((m) => m.conv_key !== convKey));
+    } catch (e) {
+      setError("Unterhaltung konnte nicht gelöscht werden.");
+    }
   }
 
   async function handleRegister(e) {
@@ -1634,7 +1699,7 @@ export default function App() {
             <span style={styles.whoami}>
               {isAdmin && <span style={styles.reportPill}>Meldungen {(openReports.length + openContentReports.length + pendingVerifications.length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length})` : ""}</span>}
               {profile && (
-                <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; markInboxRead(); }}>
+                <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; }}>
                   Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.length})` : ""}
                 </button>
               )}
@@ -1656,6 +1721,7 @@ export default function App() {
           conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey}
           incomingOffers={incomingOffers} outgoingOffers={outgoingOffers} onAcceptOffer={acceptTradeOffer} onDeclineOffer={declineTradeOffer} tradeActionId={tradeActionId}
           incomingRequests={incomingRequests} outgoingRequests={outgoingRequests} onAcceptRequest={acceptPurchaseRequest} onDeclineRequest={declinePurchaseRequest} requestActionId={requestActionId}
+          onMarkRead={markConversationRead} onDeleteMessage={deleteMessage} onDeleteConversation={deleteConversation}
         />
       ) : page === "profil" && session && profile ? (
         <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} />
@@ -2080,6 +2146,14 @@ const styles = {
   completedMeta: { fontSize: 12.5, color: COLORS.muted, marginTop: 2 },
   newMatchBadge: { marginLeft: 8, fontFamily: "'Inter', sans-serif", fontSize: 10.5, background: COLORS.rust, color: "#fff", borderRadius: 20, padding: "2px 8px" },
   convBox: { border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: 12, marginBottom: 12 },
+  convHeadRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4, flexWrap: "wrap" },
+  convList: { display: "flex", flexDirection: "column", gap: 8 },
+  convListRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textAlign: "left", width: "100%", border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: "12px 14px", background: COLORS.card, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
+  convListMain: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 },
+  convListItem: { color: COLORS.muted, fontSize: 12.5 },
+  convListSnippet: { color: COLORS.muted, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 320 },
+  unreadBadge: { flexShrink: 0, background: COLORS.rust, color: "#fff", borderRadius: 20, minWidth: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, padding: "0 6px" },
+  msgDeleteBtn: { marginLeft: 8, background: "none", border: "none", color: "inherit", opacity: 0.6, cursor: "pointer", fontSize: 14, fontWeight: 700, verticalAlign: "middle" },
   convHead: { fontSize: 12.5, color: COLORS.muted, marginBottom: 8, fontFamily: "'Inter', sans-serif" },
   convMessages: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 },
   bubble: { padding: "8px 10px", borderRadius: 8, fontSize: 13.5, maxWidth: "85%" },
