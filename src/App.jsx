@@ -1632,7 +1632,7 @@ export default function App() {
         <div style={styles.headerRight}>
           {session ? (
             <span style={styles.whoami}>
-              {isAdmin && <span style={styles.reportPill}>Meldungen {(openReports.length + openContentReports.length) > 0 ? `(${openReports.length + openContentReports.length})` : ""}</span>}
+              {isAdmin && <span style={styles.reportPill}>Meldungen {(openReports.length + openContentReports.length + pendingVerifications.length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length})` : ""}</span>}
               {profile && (
                 <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; markInboxRead(); }}>
                   Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.length})` : ""}
@@ -2158,7 +2158,7 @@ const styles = {
   typeToggleBtn: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "10px 12px", border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer", borderRadius: 5 },
   typeToggleBtnActive: { background: COLORS.ink, color: COLORS.paper },
   bigTabs: { display: "flex", gap: 8, marginBottom: 16 },
-  bigTab: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, padding: "10px 20px", borderRadius: 6, border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer" },
+  bigTab: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, padding: "10px 20px", borderRadius: 6, border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer" },
   bigTabActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
   adBanner: { display: "none" },
   adBannerInner: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "16px 16px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", width: 176 },
