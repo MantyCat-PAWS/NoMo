@@ -654,17 +654,22 @@ function SavedSearchesSection({ searches, onApply, onDelete }) {
 
 function VerificationImage({ path }) {
   const [signedUrl, setSignedUrl] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   useEffect(() => {
     let active = true;
-    if (path) {
-      supabase.storage.from("id-verification").createSignedUrl(path, 300).then(({ data }) => {
-        if (active && data) setSignedUrl(data.signedUrl);
-      });
-    }
+    setSignedUrl(null);
+    setLoadError(null);
+    if (!path) { setLoadError("Kein Ausweisfoto hinterlegt."); return; }
+    supabase.storage.from("id-verification").createSignedUrl(path, 300).then(({ data, error }) => {
+      if (!active) return;
+      if (error) { setLoadError(error.message); return; }
+      if (data) setSignedUrl(data.signedUrl);
+    });
     return () => { active = false; };
   }, [path]);
+  if (loadError) return <p style={styles.verifyRejected}>Bild konnte nicht geladen werden: {loadError}</p>;
   if (!signedUrl) return <div style={styles.verifyPending}>Bild wird geladen…</div>;
-  return <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumbLarge} />;
+  return <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumbLarge} onError={() => setLoadError("Die Bild-URL konnte nicht angezeigt werden.")} />;
 }
 
 function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, busyId }) {
@@ -1234,7 +1239,7 @@ export default function App() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    if (["nachrichten", "profil"].includes(page)) window.location.hash = "";
+    if (["nachrichten", "profil", "meldungen"].includes(page)) window.location.hash = "";
   }
 
   async function saveProfile(newProfile) {
@@ -1769,7 +1774,11 @@ export default function App() {
         <div style={styles.headerRight}>
           {session ? (
             <span style={styles.whoami}>
-              {isAdmin && <span style={styles.reportPill}>Meldungen {(openReports.length + openContentReports.length + pendingVerifications.length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length})` : ""}</span>}
+              {isAdmin && (
+                <button style={styles.reportPillBtn} onClick={() => { window.location.hash = "meldungen"; }}>
+                  Meldungen {(openReports.length + openContentReports.length + pendingVerifications.length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length})` : ""}
+                </button>
+              )}
               {profile && (
                 <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; }}>
                   Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.length})` : ""}
@@ -1797,6 +1806,21 @@ export default function App() {
         />
       ) : page === "profil" && session && profile ? (
         <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} />
+      ) : page === "meldungen" && isAdmin ? (
+        <div style={styles.legalPage}>
+          <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+          <h1 style={styles.legalTitle}>Meldungen</h1>
+          <ReportsInbox
+            items={reportItems}
+            onDismissRating={dismissReport}
+            onBlockUser={blockUser}
+            onRemoveListing={removeReportedListing}
+            onDismissContent={dismissContentReport}
+            onApproveVerification={approveVerification}
+            onRejectVerification={rejectVerification}
+            busyId={reportActionId || verificationActionId}
+          />
+        </div>
       ) : isLegalPage ? (
         <LegalPage page={page} />
       ) : (
@@ -1854,22 +1878,6 @@ export default function App() {
           {error}
           <button style={styles.errorClose} onClick={() => setError(null)}>×</button>
         </div>
-      )}
-
-      {isAdmin && reportItems.length > 0 && (
-        <section style={styles.adminBox}>
-          <h2 style={styles.adminTitle}>Meldungen</h2>
-          <ReportsInbox
-            items={reportItems}
-            onDismissRating={dismissReport}
-            onBlockUser={blockUser}
-            onRemoveListing={removeReportedListing}
-            onDismissContent={dismissContentReport}
-            onApproveVerification={approveVerification}
-            onRejectVerification={rejectVerification}
-            busyId={reportActionId || verificationActionId}
-          />
-        </section>
       )}
 
       {isAdmin && (
@@ -2151,7 +2159,7 @@ const styles = {
   headerRight: { fontSize: 13, color: COLORS.muted },
   whoami: { fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
   balancePill: { display: "inline-flex", alignItems: "center", gap: 4, background: COLORS.paper, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "2px 10px 2px 6px", fontWeight: 600 },
-  reportPill: { background: COLORS.rust, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
+  reportPillBtn: { background: COLORS.rust, color: "#fff", border: "none", borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   tradePill: { background: COLORS.moss, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
   msgPillBtn: { background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   logoutLink: { background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.lime },
