@@ -17,6 +17,7 @@ function NoMoCrest({ size = 34 }) {
 }
 
 const CURRENCY = "NoMo's";
+const SHOW_AD_BANNER = false; // vorübergehend ausgeblendet, auf true setzen zum Wiedereinschalten
 const CURRENCY_SINGULAR = "NoMo";
 const EURO_TO_PAW = 10;
 // Trag hier die E-Mail-Adresse ein, mit der ihr euch als Betreiber:in registriert,
@@ -1542,16 +1543,18 @@ export default function App() {
         <a href="#angebote" className="mc-btn" style={styles.heroCta}>Zettel durchstöbern ↓</a>
       </section>
 
-      <div className="mc-ad" style={styles.adBanner}>
-        <div style={styles.adBannerInner}>
-          <span style={styles.adLabel}>Anzeige</span>
-          <b style={styles.adTitle}>centerpiece Tattoos</b>
-          <span style={styles.adText}>
-            Tattoostudio in Traun, spezialisiert auf Portraits, Black'n'Grey und Realismus.
-          </span>
-          <a href="https://centerpiece.at" target="_blank" rel="noopener noreferrer" style={styles.adLink}>centerpiece.at ↗</a>
+      {SHOW_AD_BANNER && (
+        <div className="mc-ad" style={styles.adBanner}>
+          <div style={styles.adBannerInner}>
+            <span style={styles.adLabel}>Anzeige</span>
+            <b style={styles.adTitle}>centerpiece Tattoos</b>
+            <span style={styles.adText}>
+              Tattoostudio in Traun, spezialisiert auf Portraits, Black'n'Grey und Realismus.
+            </span>
+            <a href="https://centerpiece.at" target="_blank" rel="noopener noreferrer" style={styles.adLink}>centerpiece.at ↗</a>
+          </div>
         </div>
-      </div>
+      )}
       {!session && (
         <section style={styles.authBox}>
           <div style={styles.authTabs}>
