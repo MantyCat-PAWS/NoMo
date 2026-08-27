@@ -223,12 +223,12 @@ function ReportForm({ item, onSubmit, onCancel, submitting }) {
 function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting, isFavorited, onToggleFavorite, favoriteBusy }) {
   const info = catInfo(item.category);
   const total = item.price + (item.shipping_paws || 0);
-  const accent = item.owner_accent_color ? colorHex(item.owner_accent_color) : COLORS.ink;
   const isSuche = item.listing_type === "suche";
   const gallery = item.image_urls && item.image_urls.length > 0 ? item.image_urls : (item.image_url ? [item.image_url] : []);
   const [activeImg, setActiveImg] = useState(0);
   return (
-    <div style={{ ...styles.ticket, opacity: item.status === "vergeben" ? 0.55 : 1, borderTopColor: accent }}>
+    <div style={{ ...styles.ticket, opacity: item.status === "vergeben" ? 0.55 : 1 }}>
+      <div style={styles.pinShadow} />
       <div style={styles.pin} />
       {!isMine && (
         <button style={styles.favoriteBtn} onClick={() => onToggleFavorite(item)} disabled={favoriteBusy} aria-label="Merken">
@@ -338,7 +338,6 @@ function TicketCard({ item, isMine, canAfford, alreadyRequested, onDelete, onReq
 
 function ProfileEditor({ profile, onSave, saving }) {
   const [avatar, setAvatar] = useState(profile.avatar || "0");
-  const [accentColor, setAccentColor] = useState(profile.accent_color || "ink");
   const [motto, setMotto] = useState(profile.motto || "");
   const [bio, setBio] = useState(profile.bio || "");
   return (
@@ -351,13 +350,6 @@ function ProfileEditor({ profile, onSave, saving }) {
           </button>
         ))}
       </div>
-      <div style={styles.label}>Akzentfarbe</div>
-      <div style={styles.colorRow}>
-        <button type="button" onClick={() => setAccentColor("ink")} style={{ ...styles.colorSwatch, background: COLORS.ink, ...(accentColor === "ink" ? styles.colorSwatchActive : {}) }} />
-        {PROFILE_COLORS.map((c) => (
-          <button key={c.id} type="button" onClick={() => setAccentColor(c.id)} style={{ ...styles.colorSwatch, background: c.hex, ...(accentColor === c.id ? styles.colorSwatchActive : {}) }} />
-        ))}
-      </div>
       <label style={styles.label}>
         Motto
         <input className="mc-input" style={styles.input} value={motto} maxLength={50} onChange={(e) => setMotto(e.target.value)} placeholder="z. B. Tauscht am liebsten Bücher & Pflanzen" />
@@ -367,7 +359,7 @@ function ProfileEditor({ profile, onSave, saving }) {
         <textarea className="mc-input" style={{ ...styles.input, minHeight: 60, resize: "vertical" }} value={bio} maxLength={200} onChange={(e) => setBio(e.target.value)} placeholder="Ein, zwei Sätze über dich" />
       </label>
       <button type="button" className="mc-btn" style={styles.primaryBtn} disabled={saving}
-        onClick={() => onSave({ avatar, accent_color: accentColor, motto: motto.trim(), bio: bio.trim() })}>
+        onClick={() => onSave({ avatar, motto: motto.trim(), bio: bio.trim() })}>
         {saving ? "Wird gespeichert…" : "Profil speichern"}
       </button>
     </div>
@@ -2021,10 +2013,11 @@ const styles = {
   primaryBtn: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 8, padding: "11px 20px", cursor: "pointer", alignSelf: "flex-start", boxShadow: "0 1px 2px rgba(33,28,20,0.06), 0 4px 10px rgba(33,28,20,0.1)" },
   smallBtn: { marginTop: 8, fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 12.5, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 6, padding: "8px 15px", cursor: "pointer" },
   empty: { padding: "40px 20px", textAlign: "center", border: `1.5px dashed ${COLORS.stone}`, borderRadius: 8, color: COLORS.muted, fontFamily: "'Inter', sans-serif", fontSize: 14 },
-  ticket: { position: "relative", display: "flex", flexDirection: "column", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, overflow: "visible", boxShadow: "0 1px 2px rgba(33,28,20,0.04), 0 6px 16px rgba(33,28,20,0.06)", height: "100%", padding: "20px 20px 16px" },
+  ticket: { position: "relative", display: "flex", flexDirection: "column", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, overflow: "visible", boxShadow: "0 1px 2px rgba(0,0,0,0.15), 0 6px 16px rgba(0,0,0,0.18)", height: "100%", padding: "26px 20px 18px" },
   ticketImage: { width: "100%", height: 160, objectFit: "cover", borderRadius: 8, marginBottom: 12 },
-  pin: { display: "none" },
-  favoriteBtn: { position: "absolute", top: 8, right: 8, background: "rgba(251,245,230,0.9)", border: `1px solid ${COLORS.stone}`, borderRadius: "50%", width: 30, height: 30, fontSize: 16, color: COLORS.rust, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
+  pinShadow: { position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 14, height: 5, borderRadius: "50%", background: "rgba(0,0,0,0.28)", filter: "blur(2px)" },
+  pin: { position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 11, height: 11, borderRadius: "50%", background: "linear-gradient(145deg, #EAECE9, #9AA39C)", border: "1px solid rgba(0,0,0,0.15)", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" },
+  favoriteBtn: { position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.35)", border: `1px solid ${COLORS.hairline}`, borderRadius: "50%", width: 30, height: 30, fontSize: 16, color: COLORS.rust, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
   galleryThumbRow: { display: "flex", gap: 6, marginTop: 6, marginBottom: 4 },
   galleryThumb: { width: 36, height: 36, objectFit: "cover", borderRadius: 3, border: `1.5px solid ${COLORS.stone}`, cursor: "pointer", opacity: 0.7 },
   galleryThumbActive: { borderColor: COLORS.ink, opacity: 1 },
