@@ -67,6 +67,18 @@ const COLORS = {
   hairline: "#343836",
   muted: "#9BA19B",
 };
+const REGIONS = [
+  { id: "burgenland", label: "Burgenland" },
+  { id: "kaernten", label: "Kärnten" },
+  { id: "niederoesterreich", label: "Niederösterreich" },
+  { id: "oberoesterreich", label: "Oberösterreich" },
+  { id: "salzburg", label: "Salzburg" },
+  { id: "steiermark", label: "Steiermark" },
+  { id: "tirol", label: "Tirol" },
+  { id: "vorarlberg", label: "Vorarlberg" },
+  { id: "wien", label: "Wien" },
+  { id: "andere", label: "Außerhalb Österreichs" },
+];
 const CATS = [
   { id: "mode_beauty", label: "Mode & Beauty", icon: "👗", physical: true },
   { id: "elektronik", label: "Elektronik & Technik", icon: "📱", physical: true },
@@ -1425,11 +1437,12 @@ export default function App() {
   const [catFilter, setCatFilter] = useState("alle");
   const [typeFilter, setTypeFilter] = useState("biete");
   const [shipFilter, setShipFilter] = useState("alle");
+  const [regionFilter, setRegionFilter] = useState("alle");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+  const [form, setForm] = useState({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [editingListingId, setEditingListingId] = useState(null);
@@ -1884,7 +1897,7 @@ export default function App() {
       if (editingListingId) {
         const { error: updErr } = await supabase.from("listings").update({
           title: form.title.trim(), category: form.category, description: form.description.trim(),
-          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
+          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region,
           image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
           listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
         }).eq("id", editingListingId);
@@ -1893,14 +1906,14 @@ export default function App() {
         const code = String(listings.length + 1).padStart(4, "0");
         const { error: insErr } = await supabase.from("listings").insert({
           code, title: form.title.trim(), category: form.category, description: form.description.trim(),
-          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun",
+          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region,
           owner_id: session.user.id, status: "verfuegbar", image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
           listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
         });
         if (insErr) throw insErr;
       }
 
-      setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+      setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
       setImageFiles([]);
       setImagePreviews([]);
       setExistingImageUrls([]);
@@ -1921,6 +1934,7 @@ export default function App() {
       pawsPerHour: listing.category === "dienstleistung" ? String(listing.price || "") : "",
       shippingEuro: listing.shipping_paws ? String(listing.shipping_paws * EURO_TO_PAW) : "",
       location: listing.location || "Traun",
+      region: listing.region || "oberoesterreich",
       sellerType: listing.seller_type || "privat",
       listingType: listing.listing_type || "biete",
       maxOfferPaws: listing.max_offer_paws != null ? String(listing.max_offer_paws) : "",
@@ -1944,7 +1958,7 @@ export default function App() {
     setExistingImageUrls([]);
     setImageFiles([]);
     setImagePreviews([]);
-    setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+    setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   }
 
 
@@ -2337,12 +2351,13 @@ export default function App() {
         shipFilter === "alle" || !isPhysical ||
         (shipFilter === "versand" && l.ships !== false) ||
         (shipFilter === "abholung" && l.ships === false);
+      const matchesRegion = regionFilter === "alle" || (l.region || "oberoesterreich") === regionFilter;
       const q = query.trim().toLowerCase();
       const matchesQuery = !q || l.title.toLowerCase().includes(q) || l.description.toLowerCase().includes(q);
       const min = priceMin === "" ? null : Number(priceMin);
       const max = priceMax === "" ? null : Number(priceMax);
       const matchesPrice = (min === null || l.price >= min) && (max === null || l.price <= max);
-      return matchesType && matchesCat && matchesShip && matchesQuery && matchesPrice;
+      return matchesType && matchesCat && matchesShip && matchesRegion && matchesQuery && matchesPrice;
     })
     .sort((a, b) => {
       if (sortBy === "preis_auf") return a.price - b.price;
@@ -2596,6 +2611,14 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            <div style={styles.sidebarBlock}>
+              <div style={styles.filterLabel}>Region</div>
+              <select className="mc-input" style={styles.input} value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
+                <option value="alle">Alle Regionen</option>
+                {REGIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+              </select>
+            </div>
           </aside>
 
           <div style={styles.boardMain}>
@@ -2716,10 +2739,18 @@ export default function App() {
                 {imagePreviews.map((src, i) => <img key={`new-${i}`} src={src} alt="Vorschau" style={styles.imagePreviewThumb} />)}
               </div>
             )}
-            <label style={styles.label}>
-              Standort
-              <input className="mc-input" style={styles.input} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-            </label>
+            <div style={styles.formRow}>
+              <label style={styles.label}>
+                Standort
+                <input className="mc-input" style={styles.input} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+              </label>
+              <label style={styles.label}>
+                Region
+                <select className="mc-input" style={styles.input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })}>
+                  {REGIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </select>
+              </label>
+            </div>
             <button type="submit" className="mc-btn" style={styles.primaryBtn} disabled={saving}>{saving ? "Wird gespeichert…" : editingListingId ? "Änderungen speichern" : "Zettel aufhängen"}</button>
           </form>
         )}
