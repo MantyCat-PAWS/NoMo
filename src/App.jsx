@@ -11,7 +11,7 @@ function NoMoCrest({ size = 34 }) {
       <circle cx="30" cy="51" r="1.4" fill={COLORS.lime} />
       <circle cx="9" cy="30" r="1.4" fill={COLORS.lime} />
       <circle cx="51" cy="30" r="1.4" fill={COLORS.lime} />
-      <text x="30" y="40" textAnchor="middle" fontFamily="'Cormorant Garamond', serif" fontSize="30" fontWeight="600" fill={COLORS.lime}>N</text>
+      <text x="30" y="40" textAnchor="middle" fontFamily="'Inter', sans-serif" fontSize="30" fontWeight="600" fill={COLORS.lime}>N</text>
     </svg>
   );
 }
@@ -84,7 +84,7 @@ function PawCoin({ size = 22 }) {
       </defs>
       <circle cx="20" cy="20" r="19" fill="url(#goldGrad)" stroke={COLORS.ink} strokeWidth="1.5" />
       <circle cx="20" cy="20" r="14.5" fill="none" stroke={COLORS.ink} strokeWidth="0.75" opacity="0.5" />
-      <text x="20" y="27" textAnchor="middle" fontFamily="'Cormorant Garamond', serif" fontSize="19" fontWeight="600" fill={COLORS.ink}>N</text>
+      <text x="20" y="27" textAnchor="middle" fontFamily="'Inter', sans-serif" fontSize="19" fontWeight="600" fill={COLORS.ink}>N</text>
     </svg>
   );
 }
@@ -1480,6 +1480,7 @@ export default function App() {
         @media (prefers-reduced-motion: reduce) { .mc-btn, .mc-ticket { transition: none !important; } .mc-btn:hover, .mc-ticket:hover { transform: none !important; } }
         .mc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 26px; }
         @media (max-width: 560px) { .mc-hero-title { font-size: 38px !important; } }
+        @media (max-width: 820px) { .mc-board-layout { flex-direction: column !important; } .mc-board-layout > aside { position: static !important; width: 100% !important; } }
         @media (min-width: 1200px) { .mc-ad { display: flex !important; position: fixed; left: 20px; top: 150px; z-index: 4; } }
       `}</style>
 
@@ -1632,16 +1633,10 @@ export default function App() {
 
       <section id="angebote" style={styles.board}>
         <div style={styles.boardHead}>
-          <h2 style={styles.boardTitle}>Das Schwarze Brett</h2>
+          <h2 style={styles.boardTitle}>Alle Angebote</h2>
           {session && (
             <button className="mc-btn" style={styles.primaryBtn} onClick={() => setShowForm((s) => !s)}>{showForm ? "Abbrechen" : "+ Zettel aufhängen"}</button>
           )}
-        </div>
-
-        <div style={styles.bigTabs}>
-          {LISTING_TYPES.map((t) => (
-            <button key={t.id} className="mc-tab" onClick={() => setTypeFilter(t.id)} style={{ ...styles.bigTab, ...(typeFilter === t.id ? styles.bigTabActive : {}) }}>{t.label}</button>
-          ))}
         </div>
 
         <input className="mc-input" style={styles.searchInput} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen, z. B. Bohrmaschine, Nachhilfe, Aquarium…" />
@@ -1655,40 +1650,62 @@ export default function App() {
           </div>
         )}
 
-        {session && (
-          <button style={styles.saveSearchLink} disabled={savingSearch} onClick={saveCurrentSearch}>
-            {savingSearch ? "wird gespeichert…" : "🔔 Als Suchagent speichern"}
-          </button>
-        )}
+        <div className="mc-board-layout" style={styles.boardLayout}>
+          <aside style={styles.sidebar}>
+            <div style={styles.sidebarBlock}>
+              <div style={styles.filterLabel}>Anzeigen</div>
+              <div style={styles.bigTabs}>
+                {LISTING_TYPES.map((t) => (
+                  <button key={t.id} className="mc-tab" onClick={() => setTypeFilter(t.id)} style={{ ...styles.bigTab, ...(typeFilter === t.id ? styles.bigTabActive : {}) }}>{t.label}</button>
+                ))}
+              </div>
+            </div>
 
-        <div style={styles.filterLabel}>Sortierung & Preis (in {CURRENCY})</div>
-        <div style={styles.sortRow}>
-          <select className="mc-input" style={{ ...styles.input, maxWidth: 200 }} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            <option value="neu">Neueste zuerst</option>
-            <option value="preis_auf">Preis aufsteigend</option>
-            <option value="preis_ab">Preis absteigend</option>
-          </select>
-          <input className="mc-input" style={{ ...styles.input, maxWidth: 100 }} type="number" min="0" placeholder="von" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
-          <span style={{ color: COLORS.mossDark }}>–</span>
-          <input className="mc-input" style={{ ...styles.input, maxWidth: 100 }} type="number" min="0" placeholder="bis" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
-        </div>
+            {session && (
+              <button style={styles.saveSearchLink} disabled={savingSearch} onClick={saveCurrentSearch}>
+                {savingSearch ? "wird gespeichert…" : "🔔 Als Suchagent speichern"}
+              </button>
+            )}
 
-        <div style={styles.filterLabel}>Kategorie</div>
-        <div style={styles.tabs}>
-          {["alle", ...CATS.map((c) => c.id)].map((f) => (
-            <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.tab, ...(catFilter === f ? styles.tabActive : {}) }}>{f === "alle" ? "Alle" : catInfo(f).label}</button>
-          ))}
-        </div>
+            <div style={styles.sidebarBlock}>
+              <div style={styles.filterLabel}>Sortierung</div>
+              <select className="mc-input" style={{ ...styles.input, width: "100%" }} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="neu">Neueste zuerst</option>
+                <option value="preis_auf">Preis aufsteigend</option>
+                <option value="preis_ab">Preis absteigend</option>
+              </select>
+            </div>
 
-        <div style={styles.filterLabel}>Versand</div>
-        <div style={styles.tabs}>
-          {[{ id: "alle", label: "Alle" }, { id: "versand", label: "Versand möglich" }, { id: "abholung", label: "Nur Abholung" }].map((f) => (
-            <button key={f.id} className="mc-tab" onClick={() => setShipFilter(f.id)} style={{ ...styles.tab, ...(shipFilter === f.id ? styles.tabActive : {}) }}>{f.label}</button>
-          ))}
-        </div>
+            <div style={styles.sidebarBlock}>
+              <div style={styles.filterLabel}>Preis (in {CURRENCY})</div>
+              <div style={styles.sortRow}>
+                <input className="mc-input" style={{ ...styles.input, width: "50%" }} type="number" min="0" placeholder="von" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
+                <input className="mc-input" style={{ ...styles.input, width: "50%" }} type="number" min="0" placeholder="bis" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
+              </div>
+            </div>
 
-        {showForm && session && (
-          <form onSubmit={submitListing} style={styles.form}>
+            <div style={styles.sidebarBlock}>
+              <div style={styles.filterLabel}>Kategorie</div>
+              <div style={styles.sidebarTabsCol}>
+                {["alle", ...CATS.map((c) => c.id)].map((f) => (
+                  <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.sidebarTab, ...(catFilter === f ? styles.sidebarTabActive : {}) }}>{f === "alle" ? "Alle" : catInfo(f).label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.sidebarBlock}>
+              <div style={styles.filterLabel}>Versand</div>
+              <div style={styles.sidebarTabsCol}>
+                {[{ id: "alle", label: "Alle" }, { id: "versand", label: "Versand möglich" }, { id: "abholung", label: "Nur Abholung" }].map((f) => (
+                  <button key={f.id} className="mc-tab" onClick={() => setShipFilter(f.id)} style={{ ...styles.sidebarTab, ...(shipFilter === f.id ? styles.sidebarTabActive : {}) }}>{f.label}</button>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          <div style={styles.boardMain}>
+            {showForm && session && (
+              <form onSubmit={submitListing} style={styles.form}>
             <div style={styles.typeToggleRow}>
               {LISTING_TYPES.map((t) => (
                 <button key={t.id} type="button"
@@ -1801,50 +1818,52 @@ export default function App() {
           </form>
         )}
 
-        {loading ? (
-          <div style={styles.empty}>Zettel werden geladen…</div>
-        ) : visible.length === 0 ? (
-          <div style={styles.empty}>{listings.length === 0 ? "Noch nichts hier. Häng den ersten Zettel auf." : "Nichts gefunden. Anderen Suchbegriff oder Filter probieren."}</div>
-        ) : (
-          <div className="mc-grid">
-            {visible.map((item) => {
-              const alreadyRated = ratings.some((r) => r.item_id === item.id && r.by_id === session?.user.id);
-              const showRating = session && item.status === "vergeben" && item.buyer_id === session.user.id && !alreadyRated;
-              return (
-                <div className="mc-ticket" key={item.id}>
-                  <TicketCard
-                    item={item}
-                    isMine={session && item.owner_id === session.user.id}
-                    canAfford={session && profile && profile.balance >= item.price + (item.shipping_paws || 0)}
-                    alreadyRequested={myOpenRequestItemIds.has(item.id)}
-                    onDelete={deleteListing}
-                    onRequest={requestItem}
-                    requesting={requestingId === item.id}
-                    showRating={showRating}
-                    onRate={submitRating}
-                    ratingSubmitting={ratingSubmittingId === item.id}
-                    myListings={myAvailableListings}
-                    tradeFormOpen={tradeFormItemId === item.id}
-                    onToggleTradeForm={toggleTradeForm}
-                    onSubmitTrade={submitTradeOffer}
-                    tradeSubmitting={tradeSubmittingId === item.id}
-                    msgFormOpen={msgFormItemId === item.id}
-                    onToggleMsgForm={toggleMsgForm}
-                    onSubmitMessage={submitMessage}
-                    msgSubmitting={msgSubmittingId === item.id}
-                    reportFormOpen={reportFormItemId === item.id}
-                    onToggleReportForm={toggleReportForm}
-                    onSubmitReport={submitContentReport}
-                    reportSubmitting={reportSubmittingId === item.id}
-                    isFavorited={favorites.some((f) => f.item_id === item.id)}
-                    onToggleFavorite={toggleFavorite}
-                    favoriteBusy={favoriteBusyId === item.id}
-                  />
-                </div>
-              );
-            })}
+            {loading ? (
+              <div style={styles.empty}>Zettel werden geladen…</div>
+            ) : visible.length === 0 ? (
+              <div style={styles.empty}>{listings.length === 0 ? "Noch nichts hier. Häng den ersten Zettel auf." : "Nichts gefunden. Anderen Suchbegriff oder Filter probieren."}</div>
+            ) : (
+              <div className="mc-grid">
+                {visible.map((item) => {
+                  const alreadyRated = ratings.some((r) => r.item_id === item.id && r.by_id === session?.user.id);
+                  const showRating = session && item.status === "vergeben" && item.buyer_id === session.user.id && !alreadyRated;
+                  return (
+                    <div className="mc-ticket" key={item.id}>
+                      <TicketCard
+                        item={item}
+                        isMine={session && item.owner_id === session.user.id}
+                        canAfford={session && profile && profile.balance >= item.price + (item.shipping_paws || 0)}
+                        alreadyRequested={myOpenRequestItemIds.has(item.id)}
+                        onDelete={deleteListing}
+                        onRequest={requestItem}
+                        requesting={requestingId === item.id}
+                        showRating={showRating}
+                        onRate={submitRating}
+                        ratingSubmitting={ratingSubmittingId === item.id}
+                        myListings={myAvailableListings}
+                        tradeFormOpen={tradeFormItemId === item.id}
+                        onToggleTradeForm={toggleTradeForm}
+                        onSubmitTrade={submitTradeOffer}
+                        tradeSubmitting={tradeSubmittingId === item.id}
+                        msgFormOpen={msgFormItemId === item.id}
+                        onToggleMsgForm={toggleMsgForm}
+                        onSubmitMessage={submitMessage}
+                        msgSubmitting={msgSubmittingId === item.id}
+                        reportFormOpen={reportFormItemId === item.id}
+                        onToggleReportForm={toggleReportForm}
+                        onSubmitReport={submitContentReport}
+                        reportSubmitting={reportSubmittingId === item.id}
+                        isFavorited={favorites.some((f) => f.item_id === item.id)}
+                        onToggleFavorite={toggleFavorite}
+                        favoriteBusy={favoriteBusyId === item.id}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </section>
       </>
       )}
@@ -1862,34 +1881,34 @@ export default function App() {
 }
 
 const styles = {
-  page: { fontFamily: "'EB Garamond', serif", background: COLORS.paper, color: COLORS.ink, minHeight: "100vh" },
+  page: { fontFamily: "'Inter', sans-serif", background: COLORS.paper, color: COLORS.ink, minHeight: "100vh" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: `2px solid ${COLORS.ink}`, background: COLORS.paper, position: "sticky", top: 0, zIndex: 5 },
-  logo: { fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: 28, letterSpacing: "0.02em" },
+  logo: { fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 28, letterSpacing: "0.02em" },
   logoRow: { display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 },
   logoImg: { height: 34, width: "auto" },
   headerRight: { fontSize: 13, color: COLORS.mossDark },
-  whoami: { fontFamily: "'Courier Prime', monospace", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  whoami: { fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
   balancePill: { display: "inline-flex", alignItems: "center", gap: 4, background: COLORS.paper, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "2px 10px 2px 6px", fontWeight: 600 },
   reportPill: { background: COLORS.rust, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
   tradePill: { background: COLORS.moss, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
-  msgPillBtn: { background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Courier Prime', monospace" },
-  logoutLink: { background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontFamily: "'Courier Prime', monospace", fontSize: 12, color: COLORS.rust },
+  msgPillBtn: { background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
+  logoutLink: { background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.rust },
   hero: { background: COLORS.moss, color: COLORS.paper, padding: "64px 28px 56px", textAlign: "center" },
-  heroEyebrow: { fontFamily: "'Courier Prime', monospace", fontSize: 12, letterSpacing: "0.18em", color: COLORS.lime, marginBottom: 18 },
-  heroTitle: { fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: 46, lineHeight: 1.15, margin: "0 0 18px", letterSpacing: "0.01em" },
+  heroEyebrow: { fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: "0.18em", color: COLORS.lime, marginBottom: 18 },
+  heroTitle: { fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 46, lineHeight: 1.15, margin: "0 0 18px", letterSpacing: "0.01em" },
   heroSub: { maxWidth: 480, margin: "0 auto 14px", fontSize: 16, lineHeight: 1.5, color: COLORS.stone },
   heroSubSmall: { maxWidth: 480, margin: "0 auto 28px", fontSize: 13.5, lineHeight: 1.5, color: COLORS.stone, opacity: 0.9 },
-  heroCta: { display: "inline-block", background: COLORS.lime, color: COLORS.ink, fontFamily: "'Courier Prime', monospace", fontWeight: 500, fontSize: 14, padding: "14px 26px", borderRadius: 4, textDecoration: "none", boxShadow: `0 5px 0 ${COLORS.ink}`, cursor: "pointer" },
+  heroCta: { display: "inline-block", background: COLORS.lime, color: COLORS.ink, fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, padding: "14px 26px", borderRadius: 4, textDecoration: "none", boxShadow: `0 5px 0 ${COLORS.ink}`, cursor: "pointer" },
   authBox: { maxWidth: 480, margin: "-28px auto 0", background: COLORS.paper, border: `2px solid ${COLORS.ink}`, borderRadius: 6, padding: "18px 20px 20px", boxShadow: `0 6px 0 ${COLORS.ink}`, position: "relative", zIndex: 2 },
   authTabs: { display: "flex", gap: 6, marginBottom: 14 },
-  authTab: { flex: 1, fontFamily: "'Courier Prime', monospace", fontSize: 13, padding: "8px 10px", border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer", borderRadius: 5 },
+  authTab: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "8px 10px", border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer", borderRadius: 5 },
   authTabActive: { background: COLORS.ink, color: COLORS.paper },
   authForm: { display: "flex", flexDirection: "column", gap: 12 },
   authError: { fontSize: 13, color: COLORS.rust },
   authInfo: { fontSize: 13, color: COLORS.mossDark },
   profileBox: { maxWidth: 480, margin: "-28px auto 0", background: "#fff", border: `2px solid ${COLORS.ink}`, borderRadius: 6, padding: "18px 20px 20px", boxShadow: `0 6px 0 ${COLORS.ink}`, position: "relative", zIndex: 2 },
-  profileTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 20, margin: "0 0 12px" },
-  profileSectionTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600, margin: "0 0 12px" },
+  profileTitle: { fontFamily: "'Inter', sans-serif", fontSize: 20, margin: "0 0 12px" },
+  profileSectionTitle: { fontFamily: "'Inter', sans-serif", fontSize: 22, fontWeight: 600, margin: "0 0 12px" },
   profileForm: { display: "flex", flexDirection: "column", gap: 12 },
   avatarRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   avatarBtn: { fontSize: 20, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer" },
@@ -1903,55 +1922,62 @@ const styles = {
   completedRow: { display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: "10px 14px" },
   completedClickable: { flex: 1, background: "none", border: "none", padding: 0, margin: 0, textAlign: "left", cursor: "pointer" },
   completedImg: { width: 48, height: 48, objectFit: "cover", borderRadius: 6, flexShrink: 0 },
-  completedTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontWeight: 600 },
+  completedTitle: { fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600 },
   completedMeta: { fontSize: 12.5, color: COLORS.mossDark, marginTop: 2 },
-  newMatchBadge: { marginLeft: 8, fontFamily: "'Courier Prime', monospace", fontSize: 10.5, background: COLORS.rust, color: "#fff", borderRadius: 20, padding: "2px 8px" },
+  newMatchBadge: { marginLeft: 8, fontFamily: "'Inter', sans-serif", fontSize: 10.5, background: COLORS.rust, color: "#fff", borderRadius: 20, padding: "2px 8px" },
   convBox: { border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: 12, marginBottom: 12 },
-  convHead: { fontSize: 12.5, color: COLORS.mossDark, marginBottom: 8, fontFamily: "'Courier Prime', monospace" },
+  convHead: { fontSize: 12.5, color: COLORS.mossDark, marginBottom: 8, fontFamily: "'Inter', sans-serif" },
   convMessages: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 },
   bubble: { padding: "8px 10px", borderRadius: 8, fontSize: 13.5, maxWidth: "85%" },
   bubbleMine: { background: COLORS.lime, alignSelf: "flex-end", marginLeft: "auto" },
   bubbleTheirs: { background: COLORS.paper, border: `1px solid ${COLORS.stone}` },
-  bubbleAuthor: { fontSize: 10.5, fontFamily: "'Courier Prime', monospace", color: COLORS.mossDark, marginBottom: 2 },
+  bubbleAuthor: { fontSize: 10.5, fontFamily: "'Inter', sans-serif", color: COLORS.mossDark, marginBottom: 2 },
   convReplyRow: { display: "flex", gap: 8 },
   errorBar: { maxWidth: 700, margin: "20px auto 0", background: "#FCE9E1", border: `1px solid ${COLORS.rust}`, color: COLORS.rust, borderRadius: 6, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 },
   errorClose: { background: "none", border: "none", color: COLORS.rust, fontSize: 18, cursor: "pointer", lineHeight: 1 },
   adminBox: { maxWidth: 700, margin: "24px auto 0", background: "#FCE9E1", border: `2px solid ${COLORS.rust}`, borderRadius: 8, padding: "16px 18px" },
-  adminTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 18, margin: "0 0 10px", color: COLORS.rust },
+  adminTitle: { fontFamily: "'Inter', sans-serif", fontSize: 18, margin: "0 0 10px", color: COLORS.rust },
   reportRow: { padding: "10px 0", borderTop: `1px solid ${COLORS.rust}55`, fontSize: 13.5, lineHeight: 1.5 },
-  smallBtnRust: { fontFamily: "'Courier Prime', monospace", fontSize: 12, background: COLORS.rust, color: "#fff", border: "none", borderRadius: 5, padding: "6px 12px", cursor: "pointer" },
-  smallBtnGhost: { fontFamily: "'Courier Prime', monospace", fontSize: 12, background: "transparent", color: COLORS.rust, border: `1px solid ${COLORS.rust}`, borderRadius: 5, padding: "6px 12px", cursor: "pointer" },
-  smallBtnGhostInk: { fontFamily: "'Courier Prime', monospace", fontSize: 12.5, background: "transparent", color: COLORS.ink, border: `1px solid ${COLORS.ink}`, borderRadius: 5, padding: "7px 14px", cursor: "pointer" },
+  smallBtnRust: { fontFamily: "'Inter', sans-serif", fontSize: 12, background: COLORS.rust, color: "#fff", border: "none", borderRadius: 5, padding: "6px 12px", cursor: "pointer" },
+  smallBtnGhost: { fontFamily: "'Inter', sans-serif", fontSize: 12, background: "transparent", color: COLORS.rust, border: `1px solid ${COLORS.rust}`, borderRadius: 5, padding: "6px 12px", cursor: "pointer" },
+  smallBtnGhostInk: { fontFamily: "'Inter', sans-serif", fontSize: 12.5, background: "transparent", color: COLORS.ink, border: `1px solid ${COLORS.ink}`, borderRadius: 5, padding: "7px 14px", cursor: "pointer" },
   tradeSection: { maxWidth: 700, margin: "24px auto 0", background: "#fff", border: `2px solid ${COLORS.moss}`, borderRadius: 8, padding: "16px 18px" },
-  tradeSectionTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 18, margin: "0 0 10px", color: COLORS.moss },
-  tradeSubhead: { fontFamily: "'Courier Prime', monospace", fontSize: 11, letterSpacing: "0.08em", color: COLORS.mossDark, marginTop: 12, marginBottom: 4 },
+  tradeSectionTitle: { fontFamily: "'Inter', sans-serif", fontSize: 18, margin: "0 0 10px", color: COLORS.moss },
+  tradeSubhead: { fontFamily: "'Inter', sans-serif", fontSize: 11, letterSpacing: "0.08em", color: COLORS.mossDark, marginTop: 12, marginBottom: 4 },
   tradeRow: { padding: "10px 0", borderTop: `1px solid ${COLORS.stone}`, fontSize: 13.5, lineHeight: 1.5 },
   wordCloud: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4, marginBottom: 4 },
-  wordChip: { fontFamily: "'Courier Prime', monospace", fontSize: 11.5, background: COLORS.paper, border: `1px solid ${COLORS.stone}`, borderRadius: 20, padding: "3px 10px", color: COLORS.mossDark },
-  board: { maxWidth: 1000, margin: "0 auto", padding: "40px 28px 40px" },
+  wordChip: { fontFamily: "'Inter', sans-serif", fontSize: 11.5, background: COLORS.paper, border: `1px solid ${COLORS.stone}`, borderRadius: 20, padding: "3px 10px", color: COLORS.mossDark },
+  board: { maxWidth: 1200, margin: "0 auto", padding: "40px 28px 40px" },
   boardHead: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14, marginBottom: 18 },
-  boardTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 30, fontWeight: 600, margin: 0 },
-  searchInput: { width: "100%", fontFamily: "'EB Garamond', serif", fontSize: 15, padding: "12px 14px", border: `1.5px solid ${COLORS.ink}`, borderRadius: 6, background: "#fff", marginBottom: 20 },
+  boardLayout: { display: "flex", gap: 32, alignItems: "flex-start" },
+  sidebar: { width: 220, flexShrink: 0, position: "sticky", top: 88 },
+  sidebarBlock: { marginBottom: 22 },
+  sidebarTabsCol: { display: "flex", flexDirection: "column", gap: 4 },
+  sidebarTab: { textAlign: "left", fontFamily: "'Inter', sans-serif", fontSize: 13.5, padding: "7px 10px", borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", color: COLORS.ink },
+  sidebarTabActive: { background: COLORS.ink, color: COLORS.paper, fontWeight: 600 },
+  boardMain: { flex: 1, minWidth: 0 },
+  boardTitle: { fontFamily: "'Inter', sans-serif", fontSize: 30, fontWeight: 600, margin: 0 },
+  searchInput: { width: "100%", fontFamily: "'Inter', sans-serif", fontSize: 15, padding: "12px 14px", border: `1.5px solid ${COLORS.ink}`, borderRadius: 6, background: "#fff", marginBottom: 20 },
   recentSearchRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: -12, marginBottom: 16 },
-  recentSearchLabel: { fontFamily: "'Courier Prime', monospace", fontSize: 11, color: COLORS.mossDark },
-  recentSearchChip: { fontFamily: "'Courier Prime', monospace", fontSize: 11.5, background: "#fff", border: `1px solid ${COLORS.stone}`, borderRadius: 20, padding: "3px 10px", cursor: "pointer", color: COLORS.mossDark },
-  saveSearchLink: { display: "block", marginBottom: 16, background: "none", border: "none", padding: 0, fontFamily: "'Courier Prime', monospace", fontSize: 12, color: COLORS.moss, textDecoration: "underline", cursor: "pointer" },
+  recentSearchLabel: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.mossDark },
+  recentSearchChip: { fontFamily: "'Inter', sans-serif", fontSize: 11.5, background: "#fff", border: `1px solid ${COLORS.stone}`, borderRadius: 20, padding: "3px 10px", cursor: "pointer", color: COLORS.mossDark },
+  saveSearchLink: { display: "block", marginBottom: 16, background: "none", border: "none", padding: 0, fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.moss, textDecoration: "underline", cursor: "pointer" },
   sortRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 20 },
-  filterLabel: { fontFamily: "'Courier Prime', monospace", fontSize: 11, letterSpacing: "0.1em", color: COLORS.mossDark, marginBottom: 8 },
+  filterLabel: { fontFamily: "'Inter', sans-serif", fontSize: 11, letterSpacing: "0.1em", color: COLORS.mossDark, marginBottom: 8 },
   tabs: { display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" },
-  tab: { fontFamily: "'Courier Prime', monospace", fontSize: 13, padding: "8px 14px", borderRadius: 20, border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer" },
+  tab: { fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "8px 14px", borderRadius: 20, border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer" },
   tabActive: { background: COLORS.ink, color: COLORS.paper },
   form: { background: "#fff", border: `2px solid ${COLORS.ink}`, borderRadius: 8, padding: 22, marginBottom: 34, display: "flex", flexDirection: "column", gap: 14, boxShadow: `0 6px 0 ${COLORS.ink}` },
   formRow: { display: "flex", gap: 14, flexWrap: "wrap" },
   label: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 500, flex: 1, minWidth: 180 },
-  input: { fontFamily: "'EB Garamond', serif", fontSize: 14, padding: "10px 12px", border: `1.5px solid ${COLORS.stone}`, borderRadius: 5, background: COLORS.paper },
+  input: { fontFamily: "'Inter', sans-serif", fontSize: 14, padding: "10px 12px", border: `1.5px solid ${COLORS.stone}`, borderRadius: 5, background: COLORS.paper },
   hobbyHint: { fontSize: 12.5, background: COLORS.paper, border: `1px dashed ${COLORS.moss}`, borderRadius: 6, padding: "10px 12px", color: COLORS.mossDark },
   imagePreviewRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   imagePreviewThumb: { width: 72, height: 72, objectFit: "cover", borderRadius: 4, border: `1.5px solid ${COLORS.stone}` },
   valueHint: { fontSize: 12.5, color: COLORS.mossDark, lineHeight: 1.5, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "10px 12px" },
-  primaryBtn: { fontFamily: "'Courier Prime', monospace", fontWeight: 500, fontSize: 14, background: COLORS.lime, color: COLORS.ink, border: `2px solid ${COLORS.ink}`, borderRadius: 5, padding: "10px 18px", cursor: "pointer", alignSelf: "flex-start" },
-  smallBtn: { marginTop: 8, fontFamily: "'Courier Prime', monospace", fontSize: 12.5, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 5, padding: "7px 14px", cursor: "pointer" },
-  empty: { padding: "40px 20px", textAlign: "center", border: `1.5px dashed ${COLORS.stone}`, borderRadius: 8, color: COLORS.mossDark, fontFamily: "'Courier Prime', monospace", fontSize: 14 },
+  primaryBtn: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, background: COLORS.lime, color: COLORS.ink, border: `2px solid ${COLORS.ink}`, borderRadius: 5, padding: "10px 18px", cursor: "pointer", alignSelf: "flex-start" },
+  smallBtn: { marginTop: 8, fontFamily: "'Inter', sans-serif", fontSize: 12.5, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 5, padding: "7px 14px", cursor: "pointer" },
+  empty: { padding: "40px 20px", textAlign: "center", border: `1.5px dashed ${COLORS.stone}`, borderRadius: 8, color: COLORS.mossDark, fontFamily: "'Inter', sans-serif", fontSize: 14 },
   ticket: { position: "relative", display: "flex", flexDirection: "column", background: "#FBF5E6", border: `1px solid ${COLORS.stone}`, borderTop: `3px solid ${COLORS.ink}`, borderRadius: 2, overflow: "visible", boxShadow: "0 3px 10px rgba(43,35,24,0.14)", height: "100%", padding: "22px 18px 16px" },
   ticketImage: { width: "100%", height: 140, objectFit: "cover", borderRadius: 2, marginBottom: 10, border: `1px solid ${COLORS.stone}` },
   pin: { position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)", width: 13, height: 13, borderRadius: "50%", background: COLORS.lime, border: `1.5px solid ${COLORS.ink}`, boxShadow: "0 2px 3px rgba(0,0,0,0.3)" },
@@ -1960,60 +1986,60 @@ const styles = {
   galleryThumb: { width: 36, height: 36, objectFit: "cover", borderRadius: 3, border: `1.5px solid ${COLORS.stone}`, cursor: "pointer", opacity: 0.7 },
   galleryThumbActive: { borderColor: COLORS.ink, opacity: 1 },
   ticketFooter: { marginTop: "auto", paddingTop: 12, borderTop: `1px dashed ${COLORS.stone}`, display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 },
-  ticketSignature: { fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: 15, color: COLORS.mossDark },
-  ticketFooterMeta: { fontFamily: "'Courier Prime', monospace", fontSize: 10.5, color: COLORS.rust },
+  ticketSignature: { fontFamily: "'Inter', sans-serif", fontStyle: "italic", fontSize: 15, color: COLORS.mossDark },
+  ticketFooterMeta: { fontFamily: "'Inter', sans-serif", fontSize: 10.5, color: COLORS.rust },
   badgeRow: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
-  catBadge: { fontFamily: "'Courier Prime', monospace", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, padding: "3px 8px", borderRadius: 3 },
-  searchBadge: { fontFamily: "'Courier Prime', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.rust, padding: "3px 8px", borderRadius: 3 },
+  catBadge: { fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, padding: "3px 8px", borderRadius: 3 },
+  searchBadge: { fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.rust, padding: "3px 8px", borderRadius: 3 },
   typeToggleRow: { display: "flex", gap: 8, marginBottom: 4 },
-  typeToggleBtn: { flex: 1, fontFamily: "'Courier Prime', monospace", fontSize: 13, padding: "10px 12px", border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer", borderRadius: 5 },
+  typeToggleBtn: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "10px 12px", border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer", borderRadius: 5 },
   typeToggleBtnActive: { background: COLORS.ink, color: COLORS.paper },
   bigTabs: { display: "flex", gap: 8, marginBottom: 16 },
-  bigTab: { fontFamily: "'Courier Prime', monospace", fontWeight: 500, fontSize: 14, padding: "10px 20px", borderRadius: 6, border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer" },
+  bigTab: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, padding: "10px 20px", borderRadius: 6, border: `1.5px solid ${COLORS.ink}`, background: "transparent", cursor: "pointer" },
   bigTabActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
   adBanner: { display: "none" },
   adBannerInner: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, background: "#fff", border: `2px solid ${COLORS.ink}`, borderRadius: 8, padding: "16px 16px", boxShadow: `0 6px 0 ${COLORS.ink}`, width: 176 },
-  adTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 15, color: COLORS.ink },
-  adLabel: { fontFamily: "'Courier Prime', monospace", fontSize: 10, letterSpacing: "0.1em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, borderRadius: 3, padding: "2px 6px" },
+  adTitle: { fontFamily: "'Inter', sans-serif", fontSize: 15, color: COLORS.ink },
+  adLabel: { fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.1em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, borderRadius: 3, padding: "2px 6px" },
   adText: { fontSize: 12.5, color: "#3A3A34", lineHeight: 1.4 },
-  adLink: { fontFamily: "'Courier Prime', monospace", fontSize: 12, color: COLORS.moss, textDecoration: "underline" },
-  soldBadge: { fontFamily: "'Courier Prime', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.rust, padding: "3px 8px", borderRadius: 3 },
-  bizBadge: { fontFamily: "'Courier Prime', monospace", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.moss, padding: "3px 8px", borderRadius: 3 },
-  shipBadge: { fontFamily: "'Courier Prime', monospace", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.moss}`, padding: "3px 8px", borderRadius: 3 },
-  pickupBadge: { fontFamily: "'Courier Prime', monospace", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, padding: "3px 8px", borderRadius: 3 },
-  reportLink: { marginTop: 10, alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontFamily: "'Courier Prime', monospace", fontSize: 11, color: COLORS.mossDark, textDecoration: "underline", cursor: "pointer" },
-  ticketTitle: { fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 19, margin: "0 0 8px", lineHeight: 1.2 },
+  adLink: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.moss, textDecoration: "underline" },
+  soldBadge: { fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.rust, padding: "3px 8px", borderRadius: 3 },
+  bizBadge: { fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.08em", color: "#fff", background: COLORS.moss, padding: "3px 8px", borderRadius: 3 },
+  shipBadge: { fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.moss}`, padding: "3px 8px", borderRadius: 3 },
+  pickupBadge: { fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.08em", color: COLORS.mossDark, border: `1px solid ${COLORS.stone}`, padding: "3px 8px", borderRadius: 3 },
+  reportLink: { marginTop: 10, alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.mossDark, textDecoration: "underline", cursor: "pointer" },
+  ticketTitle: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 19, margin: "0 0 8px", lineHeight: 1.2 },
   ticketDesc: { fontSize: 13.5, lineHeight: 1.5, margin: "0 0 10px", color: "#3A3A34" },
-  metaLine: { fontSize: 12, color: COLORS.mossDark, marginBottom: 8, fontFamily: "'Courier Prime', monospace" },
+  metaLine: { fontSize: 12, color: COLORS.mossDark, marginBottom: 8, fontFamily: "'Inter', sans-serif" },
   priceRow: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4 },
-  priceValue: { fontFamily: "'Cormorant Garamond', serif", fontWeight: 700, fontSize: 20, color: COLORS.moss },
-  priceLabel: { fontFamily: "'Courier Prime', monospace", fontSize: 12, color: COLORS.mossDark },
-  shippingLine: { fontSize: 11.5, color: COLORS.rust, marginBottom: 10, fontFamily: "'Courier Prime', monospace" },
-  deleteLink: { marginTop: "auto", background: "none", border: "none", padding: 0, fontFamily: "'Courier Prime', monospace", fontSize: 11.5, color: COLORS.rust, textDecoration: "underline", cursor: "pointer", alignSelf: "flex-start" },
+  priceValue: { fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 20, color: COLORS.moss },
+  priceLabel: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.mossDark },
+  shippingLine: { fontSize: 11.5, color: COLORS.rust, marginBottom: 10, fontFamily: "'Inter', sans-serif" },
+  deleteLink: { marginTop: "auto", background: "none", border: "none", padding: 0, fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: COLORS.rust, textDecoration: "underline", cursor: "pointer", alignSelf: "flex-start" },
   actionRow: { marginTop: "auto", display: "flex", flexDirection: "column", gap: 6 },
-  requestBtn: { fontFamily: "'Courier Prime', monospace", fontSize: 12.5, background: COLORS.lime, color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 5, padding: "8px 12px", cursor: "pointer" },
+  requestBtn: { fontFamily: "'Inter', sans-serif", fontSize: 12.5, background: COLORS.lime, color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 5, padding: "8px 12px", cursor: "pointer" },
   requestBtnDisabled: { background: COLORS.stone, color: COLORS.mossDark, cursor: "not-allowed" },
-  tradeToggleBtn: { fontFamily: "'Courier Prime', monospace", fontSize: 11.5, background: "transparent", color: COLORS.moss, border: `1.5px solid ${COLORS.moss}`, borderRadius: 5, padding: "7px 10px", cursor: "pointer" },
-  msgToggleBtn: { fontFamily: "'Courier Prime', monospace", fontSize: 11.5, background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 5, padding: "7px 10px", cursor: "pointer" },
+  tradeToggleBtn: { fontFamily: "'Inter', sans-serif", fontSize: 11.5, background: "transparent", color: COLORS.moss, border: `1.5px solid ${COLORS.moss}`, borderRadius: 5, padding: "7px 10px", cursor: "pointer" },
+  msgToggleBtn: { fontFamily: "'Inter', sans-serif", fontSize: 11.5, background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 5, padding: "7px 10px", cursor: "pointer" },
   tradeBox: { marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${COLORS.stone}`, fontSize: 12.5, color: COLORS.mossDark },
   tradeShippingNote: { marginTop: 8, fontSize: 11.5, color: COLORS.mossDark, fontStyle: "italic" },
   ratingBox: { marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${COLORS.stone}`, display: "flex", flexDirection: "column", gap: 4 },
   ratingLabel: { fontSize: 12, color: COLORS.mossDark },
   ticketStub: { width: 92, borderLeft: `2px dashed ${COLORS.ink}`, background: COLORS.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "10px 6px", position: "relative" },
   hole: { width: 10, height: 10, borderRadius: "50%", background: COLORS.paper, border: `2px solid ${COLORS.ink}` },
-  ticketCode: { fontFamily: "'Courier Prime', monospace", fontSize: 13, fontWeight: 500, writingMode: "vertical-rl", transform: "rotate(180deg)" },
+  ticketCode: { fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, writingMode: "vertical-rl", transform: "rotate(180deg)" },
   ticketAvatar: { fontSize: 16 },
-  ticketBy: { fontSize: 10.5, fontFamily: "'Courier Prime', monospace", writingMode: "vertical-rl", transform: "rotate(180deg)", color: COLORS.mossDark },
-  ticketLoc: { fontSize: 10, fontFamily: "'Courier Prime', monospace", color: COLORS.rust, writingMode: "vertical-rl", transform: "rotate(180deg)" },
-  footer: { textAlign: "center", padding: "28px 20px 40px", fontSize: 12.5, color: COLORS.mossDark, fontFamily: "'Courier Prime', monospace" },
+  ticketBy: { fontSize: 10.5, fontFamily: "'Inter', sans-serif", writingMode: "vertical-rl", transform: "rotate(180deg)", color: COLORS.mossDark },
+  ticketLoc: { fontSize: 10, fontFamily: "'Inter', sans-serif", color: COLORS.rust, writingMode: "vertical-rl", transform: "rotate(180deg)" },
+  footer: { textAlign: "center", padding: "28px 20px 40px", fontSize: 12.5, color: COLORS.mossDark, fontFamily: "'Inter', sans-serif" },
   footerLinks: { display: "flex", gap: 16, justifyContent: "center", marginTop: 10 },
   footerLink: { color: COLORS.mossDark, textDecoration: "underline" },
 
   legalPage: { maxWidth: 760, margin: "0 auto", padding: "48px 28px 60px" },
-  legalBack: { display: "inline-block", marginBottom: 20, fontFamily: "'Courier Prime', monospace", fontSize: 13, color: COLORS.moss, textDecoration: "underline" },
-  legalTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 600, margin: "0 0 16px" },
+  legalBack: { display: "inline-block", marginBottom: 20, fontFamily: "'Inter', sans-serif", fontSize: 13, color: COLORS.moss, textDecoration: "underline" },
+  legalTitle: { fontFamily: "'Inter', sans-serif", fontSize: 34, fontWeight: 600, margin: "0 0 16px" },
   legalNotice: { fontSize: 12.5, color: COLORS.mossDark, background: "#fff", border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "12px 14px", marginBottom: 28, lineHeight: 1.5 },
-  legalH3: { fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 600, margin: "0 0 8px", color: COLORS.moss },
+  legalH3: { fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 600, margin: "0 0 8px", color: COLORS.moss },
   legalP: { fontSize: 14, lineHeight: 1.6, margin: "0 0 10px", color: "#3A3A34" },
   legalUl: { fontSize: 14, lineHeight: 1.6, color: "#3A3A34", paddingLeft: 20, margin: 0 },
 };
