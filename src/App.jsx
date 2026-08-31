@@ -61,9 +61,10 @@ const COLORS = {
   moss: "#1F7A45",
   mossDark: "#154E2D",
   lime: "#2ECC71",
+  limeDeep: "#22A85E",
   rust: "#E05B4C",
   stone: "#343836",
-  hairline: "#343836",
+  hairline: "#3A3E3C",
   muted: "#9BA19B",
 };
 const REGIONS = [
@@ -2491,14 +2492,14 @@ export default function App() {
       )}
       <style>{`
         * { box-sizing: border-box; }
-        body { margin: 0; }
+        body { margin: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
         button, input, textarea, select { font: inherit; color: inherit; }
         ::selection { background: ${COLORS.lime}; color: ${COLORS.ink}; }
         .mc-btn { transition: transform .15s ease, box-shadow .15s ease; }
         .mc-btn:hover { transform: translateY(-2px); }
         .mc-btn:focus-visible, .mc-input:focus-visible, .mc-tab:focus-visible { outline: 3px solid ${COLORS.lime}; outline-offset: 2px; }
         .mc-ticket { transition: transform .2s ease, box-shadow .2s ease; }
-        .mc-ticket:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(33,28,20,0.06), 0 16px 32px rgba(33,28,20,0.12); }
+        .mc-ticket:hover { transform: translateY(-3px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 8px rgba(0,0,0,0.25), 0 20px 40px rgba(0,0,0,0.32); }
         .mc-avatar-btn { transition: transform .15s ease; position: relative; z-index: 1; }
         .mc-avatar-btn:hover, .mc-avatar-btn:focus-visible { transform: scale(1.8); z-index: 3; }
         input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button {
@@ -2966,12 +2967,12 @@ export default function App() {
 }
 
 const styles = {
-  page: { fontFamily: "'Inter', sans-serif", background: COLORS.paper, color: COLORS.ink, minHeight: "100vh" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 32px", borderBottom: `1px solid ${COLORS.hairline}`, background: "rgba(26,28,27,0.92)", backdropFilter: "blur(6px)", position: "sticky", top: 0, zIndex: 5 },
+  page: { fontFamily: "'Inter', sans-serif", background: `radial-gradient(ellipse 1200px 600px at 50% -10%, #22261f 0%, ${COLORS.paper} 55%)`, backgroundColor: COLORS.paper, color: COLORS.ink, minHeight: "100vh" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 32px", borderBottom: `1px solid ${COLORS.hairline}`, background: "rgba(26,28,27,0.92)", backdropFilter: "blur(6px)", position: "sticky", top: 0, zIndex: 5, boxShadow: "0 1px 0 rgba(255,255,255,0.03), 0 8px 20px rgba(0,0,0,0.2)" },
   logo: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: "0.005em", color: COLORS.lime },
   logoRow: { display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 },
   logoWordmark: { height: 34, width: "auto", display: "block" },
-  logoWordmarkText: { fontFamily: "'Fredoka', sans-serif", fontWeight: 600, fontSize: 23, color: COLORS.ink, letterSpacing: "-0.3px" },
+  logoWordmarkText: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 23, color: COLORS.ink, letterSpacing: "-0.4px" },
   logoWordmarkAccent: { color: COLORS.lime },
   logoImg: { height: 34, width: "auto" },
   headerRight: { fontSize: 13, color: COLORS.muted },
@@ -2981,9 +2982,9 @@ const styles = {
   tradePill: { background: COLORS.moss, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
   msgPillBtn: { background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   logoutLink: { background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.lime },
-  hero: { background: COLORS.moss, color: "#fff", padding: "88px 28px 64px", textAlign: "center" },
+  hero: { background: `radial-gradient(ellipse 700px 380px at 50% -8%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 60%), linear-gradient(160deg, ${COLORS.moss} 0%, ${COLORS.mossDark} 100%)`, color: "#fff", padding: "88px 28px 64px", textAlign: "center", position: "relative", overflow: "hidden" },
   heroEyebrow: { fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: "0.18em", color: COLORS.lime, marginBottom: 18 },
-  heroTitle: { fontFamily: "'Fredoka', sans-serif", fontWeight: 600, fontSize: 52, lineHeight: 1.12, margin: "0 0 20px", letterSpacing: "-0.01em", color: "#fff" },
+  heroTitle: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 54, lineHeight: 1.1, margin: "0 0 20px", letterSpacing: "-0.02em", color: "#fff" },
   heroSub: { maxWidth: 480, margin: "0 auto 14px", fontSize: 17, lineHeight: 1.55, color: "rgba(255,255,255,0.85)" },
   heroSubSmall: { maxWidth: 480, margin: "0 auto 28px", fontSize: 13.5, lineHeight: 1.5, color: COLORS.stone, opacity: 0.9 },
   heroCta: { display: "inline-block", background: COLORS.lime, color: "#fff", fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14.5, padding: "15px 30px", borderRadius: 999, textDecoration: "none", boxShadow: "0 1px 2px rgba(0,0,0,0.15), 0 10px 24px rgba(0,0,0,0.25)", cursor: "pointer", letterSpacing: "0.01em" },
@@ -2998,7 +2999,7 @@ const styles = {
   authInfo: { fontSize: 13, color: COLORS.muted },
   profileBox: { maxWidth: 480, margin: "8px auto 0", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "18px 20px 20px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", position: "relative", zIndex: 2 },
   profileTitle: { fontFamily: "'Inter', sans-serif", fontSize: 20, margin: "0 0 12px" },
-  profileSectionTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 24, fontWeight: 600, margin: "0 0 12px", color: COLORS.lime },
+  profileSectionTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 24, fontWeight: 700, margin: "0 0 12px", color: COLORS.lime, letterSpacing: "-0.01em" },
   profileForm: { display: "flex", flexDirection: "column", gap: 12 },
   wishRow: { display: "flex", gap: 8 },
   wishChipRow: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 },
@@ -3072,7 +3073,7 @@ const styles = {
   sidebarTab: { textAlign: "left", fontFamily: "'Inter', sans-serif", fontSize: 13.5, padding: "7px 10px", borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", color: COLORS.ink },
   sidebarTabActive: { background: COLORS.ink, color: COLORS.paper, fontWeight: 600 },
   boardMain: { flex: 1, minWidth: 0 },
-  boardTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 30, fontWeight: 600, margin: 0, color: COLORS.lime },
+  boardTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 30, fontWeight: 700, margin: 0, color: COLORS.lime, letterSpacing: "-0.01em" },
   searchInput: { width: "100%", fontFamily: "'Inter', sans-serif", fontSize: 15, padding: "12px 14px", border: `1px solid ${COLORS.hairline}`, borderRadius: 6, background: COLORS.card, marginBottom: 20, color: COLORS.ink },
   recentSearchRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: -12, marginBottom: 16 },
   recentSearchLabel: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted },
@@ -3087,17 +3088,17 @@ const styles = {
   formRow: { display: "flex", gap: 14, flexWrap: "wrap" },
   label: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 500, flex: 1, minWidth: 180 },
   checkboxRow: { display: "flex", flexDirection: "row", alignItems: "center", gap: 6, fontWeight: 400, fontSize: 12.5, marginTop: 2, cursor: "pointer" },
-  input: { fontFamily: "'Inter', sans-serif", fontSize: 14, padding: "10px 12px", border: `1.5px solid ${COLORS.stone}`, borderRadius: 5, background: COLORS.paper, color: COLORS.ink },
+  input: { fontFamily: "'Inter', sans-serif", fontSize: 14, padding: "10px 12px", border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, background: COLORS.paper, color: COLORS.ink, boxShadow: "inset 0 1px 3px rgba(0,0,0,0.25)" },
   hobbyHint: { fontSize: 12.5, background: COLORS.paper, border: `1px dashed ${COLORS.moss}`, borderRadius: 6, padding: "10px 12px", color: COLORS.muted },
   imagePreviewRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   imagePreviewThumb: { width: 72, height: 72, objectFit: "cover", borderRadius: 4, border: `1.5px solid ${COLORS.stone}` },
   imagePreviewWrap: { position: "relative", display: "inline-block" },
   imagePreviewRemove: { position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: COLORS.rust, color: "#fff", border: "none", cursor: "pointer", fontSize: 13, lineHeight: 1 },
   valueHint: { fontSize: 12.5, color: COLORS.muted, lineHeight: 1.5, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "10px 12px" },
-  primaryBtn: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 8, padding: "11px 20px", cursor: "pointer", alignSelf: "flex-start", boxShadow: "0 1px 2px rgba(33,28,20,0.06), 0 4px 10px rgba(33,28,20,0.1)" },
+  primaryBtn: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14, background: `linear-gradient(180deg, #ffffff 0%, ${COLORS.ink} 100%)`, color: COLORS.paper, border: "none", borderRadius: 8, padding: "11px 20px", cursor: "pointer", alignSelf: "flex-start", boxShadow: "0 1px 2px rgba(0,0,0,0.2), 0 6px 16px rgba(0,0,0,0.28)" },
   smallBtn: { marginTop: 8, fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 12.5, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 6, padding: "8px 15px", cursor: "pointer" },
   empty: { padding: "40px 20px", textAlign: "center", border: `1.5px dashed ${COLORS.stone}`, borderRadius: 8, color: COLORS.muted, fontFamily: "'Inter', sans-serif", fontSize: 14 },
-  ticket: { position: "relative", display: "flex", flexDirection: "column", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, overflow: "visible", boxShadow: "0 1px 2px rgba(0,0,0,0.15), 0 6px 16px rgba(0,0,0,0.18)", height: "100%", padding: "26px 20px 18px" },
+  ticket: { position: "relative", display: "flex", flexDirection: "column", background: `linear-gradient(175deg, #26292a 0%, ${COLORS.card} 40%)`, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, overflow: "visible", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.2), 0 10px 24px rgba(0,0,0,0.22)", height: "100%", padding: "26px 20px 18px" },
   ticketImage: { width: "100%", height: 160, objectFit: "cover", borderRadius: 8, marginBottom: 12 },
   pinShadow: { position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 14, height: 5, borderRadius: "50%", background: "rgba(0,0,0,0.28)", filter: "blur(2px)" },
   pin: { position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 11, height: 11, borderRadius: "50%", background: "linear-gradient(145deg, #EAECE9, #9AA39C)", border: "1px solid rgba(0,0,0,0.15)", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" },
@@ -3165,7 +3166,7 @@ const styles = {
 
   legalPage: { maxWidth: 760, margin: "0 auto", padding: "48px 28px 60px" },
   legalBack: { display: "inline-block", marginBottom: 20, fontFamily: "'Inter', sans-serif", fontSize: 13, color: COLORS.moss, textDecoration: "underline" },
-  legalTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 36, fontWeight: 600, margin: "0 0 16px", color: COLORS.lime },
+  legalTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 36, fontWeight: 700, margin: "0 0 16px", color: COLORS.lime, letterSpacing: "-0.015em" },
   legalNotice: { fontSize: 12.5, color: COLORS.muted, background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 6, padding: "12px 14px", marginBottom: 28, lineHeight: 1.5 },
   faqItem: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: "10px 14px", marginBottom: 8, background: COLORS.card },
   faqQuestion: { cursor: "pointer", fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14.5, color: COLORS.ink },
