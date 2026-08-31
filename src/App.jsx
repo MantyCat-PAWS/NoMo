@@ -1430,6 +1430,15 @@ export default function App() {
   const [verificationActionId, setVerificationActionId] = useState(null);
 
   const [authMode, setAuthMode] = useState("login");
+  const [showForgotForm, setShowForgotForm] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotBusy, setForgotBusy] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetPasswordBusy, setResetPasswordBusy] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState(null);
+  const [resetPasswordDone, setResetPasswordDone] = useState(false);
   const [authForm, setAuthForm] = useState({ email: "", password: "", displayName: "" });
   const [authError, setAuthError] = useState(null);
   const [authInfo, setAuthInfo] = useState(null);
@@ -1540,6 +1549,7 @@ export default function App() {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
+      if (_event === "PASSWORD_RECOVERY") setShowResetPassword(true);
       if (s) {
         loadOwnProfile(s.user.id);
         fetchMessages(s.user.id);
@@ -1789,6 +1799,37 @@ export default function App() {
     } catch (e) {
       setAuthError("Anmeldung fehlgeschlagen. Bitte nochmal versuchen.");
     } finally { setAuthBusy(false); }
+  }
+
+  async function handleForgotPassword(e) {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotBusy(true);
+    setAuthError(null);
+    try {
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: window.location.origin,
+      });
+      if (resetErr) throw resetErr;
+      setForgotSent(true);
+    } catch (e) {
+      setAuthError("Konnte keine E-Mail senden: " + (e?.message || "unbekannter Fehler"));
+    } finally { setForgotBusy(false); }
+  }
+
+  async function handleSetNewPassword(e) {
+    e.preventDefault();
+    if (newPassword.length < 6) { setResetPasswordError("Das Passwort muss mindestens 6 Zeichen haben."); return; }
+    setResetPasswordBusy(true);
+    setResetPasswordError(null);
+    try {
+      const { error: updErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (updErr) throw updErr;
+      setResetPasswordDone(true);
+      setNewPassword("");
+    } catch (e) {
+      setResetPasswordError("Konnte Passwort nicht speichern: " + (e?.message || "unbekannter Fehler"));
+    } finally { setResetPasswordBusy(false); }
   }
 
   async function handleLogout() {
@@ -2424,6 +2465,30 @@ export default function App() {
 
   return (
     <div style={styles.page}>
+      {showResetPassword && (
+        <div style={styles.lightboxOverlayFallback}>
+          <div style={styles.resetPasswordBox}>
+            <h2 style={{ ...styles.legalTitle, fontSize: 20 }}>Neues Passwort festlegen</h2>
+            {resetPasswordDone ? (
+              <>
+                <p style={styles.legalP}>✓ Dein Passwort wurde geändert. Du bist jetzt angemeldet.</p>
+                <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { setShowResetPassword(false); setResetPasswordDone(false); }}>Weiter zu NoCashClub</button>
+              </>
+            ) : (
+              <form onSubmit={handleSetNewPassword} style={styles.authForm}>
+                <label style={styles.label}>
+                  Neues Passwort
+                  <input className="mc-input" style={styles.input} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="mind. 6 Zeichen" autoFocus />
+                </label>
+                {resetPasswordError && <div style={styles.authError}>{resetPasswordError}</div>}
+                <button type="submit" className="mc-btn" style={styles.primaryBtn} disabled={resetPasswordBusy}>
+                  {resetPasswordBusy ? "Einen Moment…" : "Passwort speichern"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
       <style>{`
         * { box-sizing: border-box; }
         body { margin: 0; }
@@ -2539,9 +2604,28 @@ export default function App() {
       {!session && (
         <section style={styles.authBox}>
           <div style={styles.authTabs}>
-            <button style={{ ...styles.authTab, ...(authMode === "login" ? styles.authTabActive : {}) }} onClick={() => { setAuthMode("login"); setAuthError(null); setAuthInfo(null); }}>Anmelden</button>
-            <button style={{ ...styles.authTab, ...(authMode === "register" ? styles.authTabActive : {}) }} onClick={() => { setAuthMode("register"); setAuthError(null); setAuthInfo(null); }}>Konto anlegen</button>
+            <button style={{ ...styles.authTab, ...(authMode === "login" ? styles.authTabActive : {}) }} onClick={() => { setAuthMode("login"); setAuthError(null); setAuthInfo(null); setShowForgotForm(false); }}>Anmelden</button>
+            <button style={{ ...styles.authTab, ...(authMode === "register" ? styles.authTabActive : {}) }} onClick={() => { setAuthMode("register"); setAuthError(null); setAuthInfo(null); setShowForgotForm(false); }}>Konto anlegen</button>
           </div>
+          {authMode === "login" && showForgotForm ? (
+            <form onSubmit={handleForgotPassword} style={styles.authForm}>
+              {forgotSent ? (
+                <p style={styles.authInfo}>✓ Falls diese E-Mail bei uns registriert ist, wurde ein Link zum Zurücksetzen verschickt. Schau auch im Spam-Ordner nach.</p>
+              ) : (
+                <>
+                  <label style={styles.label}>
+                    E-Mail
+                    <input className="mc-input" style={styles.input} type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="du@beispiel.at" />
+                  </label>
+                  {authError && <div style={styles.authError}>{authError}</div>}
+                  <button type="submit" className="mc-btn" style={styles.primaryBtn} disabled={forgotBusy}>
+                    {forgotBusy ? "Einen Moment…" : "Link zum Zurücksetzen senden"}
+                  </button>
+                </>
+              )}
+              <button type="button" style={styles.saveSearchLink} onClick={() => { setShowForgotForm(false); setForgotSent(false); setAuthError(null); }}>← Zurück zur Anmeldung</button>
+            </form>
+          ) : (
           <form onSubmit={authMode === "login" ? handleLogin : handleRegister} style={styles.authForm}>
             {authMode === "register" && (
               <label style={styles.label}>
@@ -2557,12 +2641,16 @@ export default function App() {
               Passwort
               <input className="mc-input" style={styles.input} type="password" value={authForm.password} onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })} />
             </label>
+            {authMode === "login" && (
+              <button type="button" style={styles.saveSearchLink} onClick={() => { setShowForgotForm(true); setForgotEmail(authForm.email); setAuthError(null); }}>Passwort vergessen?</button>
+            )}
             {authError && <div style={styles.authError}>{authError}</div>}
             {authInfo && <div style={styles.authInfo}>{authInfo}</div>}
             <button type="submit" className="mc-btn" style={styles.primaryBtn} disabled={authBusy}>
               {authBusy ? "Einen Moment…" : authMode === "login" ? "Anmelden" : "Konto anlegen"}
             </button>
           </form>
+          )}
         </section>
       )}
 
@@ -2900,6 +2988,8 @@ const styles = {
   heroSubSmall: { maxWidth: 480, margin: "0 auto 28px", fontSize: 13.5, lineHeight: 1.5, color: COLORS.stone, opacity: 0.9 },
   heroCta: { display: "inline-block", background: COLORS.lime, color: "#fff", fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14.5, padding: "15px 30px", borderRadius: 999, textDecoration: "none", boxShadow: "0 1px 2px rgba(0,0,0,0.15), 0 10px 24px rgba(0,0,0,0.25)", cursor: "pointer", letterSpacing: "0.01em" },
   authBox: { maxWidth: 440, margin: "8px auto 0", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "24px 26px 26px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", position: "relative", zIndex: 2 },
+  lightboxOverlayFallback: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 24 },
+  resetPasswordBox: { background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "28px 26px", maxWidth: 400, width: "100%" },
   authTabs: { display: "flex", gap: 6, marginBottom: 14 },
   authTab: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "8px 10px", border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer", borderRadius: 5 },
   authTabActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
