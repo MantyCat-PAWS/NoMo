@@ -20,6 +20,13 @@ const CURRENCY = "Chips";
 const SHOW_AD_BANNER = false; // vorübergehend ausgeblendet, auf true setzen zum Wiedereinschalten
 const CURRENCY_SINGULAR = "Chip";
 const EURO_TO_PAW = 10;
+const VAPID_PUBLIC_KEY = "BM_U5NODqoLUvGK9e3wr_amMfaZ9By1BFgzjLzIwV2IJzUfpa7YlkGwMead8EWb321Yv1KnK2xGXGvlASpPs-w0";
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
 const SHIP_DAYS = 5; // Frist in Tagen für die verkaufende Person zum Versenden, sobald eine Anfrage angenommen wurde
 // Trag hier die E-Mail-Adresse ein, mit der ihr euch als Betreiber:in registriert,
 // dann seht ihr das Meldungen-Panel für 1-Stern-Bewertungen.
@@ -1101,7 +1108,26 @@ function AddressEditor({ address, onSave, saving }) {
   );
 }
 
-function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, onEditListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading, myAddress, onSaveAddress, addressSaving }) {
+function PushNotificationSection({ enabled, busy, error, onEnable }) {
+  return (
+    <div style={styles.verifyBox}>
+      <h2 style={styles.profileSectionTitle}>Benachrichtigungen</h2>
+      {enabled ? (
+        <p style={styles.legalP}>✓ Aktiviert — du bekommst jetzt Push-Benachrichtigungen bei neuen Nachrichten und Angeboten (funktioniert am besten, wenn NoCashClub als App zum Home-Bildschirm hinzugefügt wurde).</p>
+      ) : (
+        <>
+          <p style={styles.legalP}>Bekomm eine Benachrichtigung, sobald dir jemand schreibt oder ein Angebot für deinen Zettel macht — auch wenn NoCashClub gerade nicht offen ist.</p>
+          {error && <div style={styles.authError}>{error}</div>}
+          <button type="button" className="mc-btn" style={styles.primaryBtn} disabled={busy} onClick={onEnable}>
+            {busy ? "Einen Moment…" : "🔔 Benachrichtigungen aktivieren"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, onEditListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading, myAddress, onSaveAddress, addressSaving, pushEnabled, pushBusy, pushError, onEnablePush }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -1110,6 +1136,7 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
         <h2 style={styles.profileSectionTitle}>Profil bearbeiten</h2>
         <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
       </div>
+      <PushNotificationSection enabled={pushEnabled} busy={pushBusy} error={pushError} onEnable={onEnablePush} />
       <VerificationSection profile={profile} onSubmit={onSubmitVerification} uploading={verificationUploading} />
       <AddressEditor address={myAddress} onSave={onSaveAddress} saving={addressSaving} />
       <FavoritesSection listings={favoriteListings} onView={onViewFavorite} />
@@ -1387,6 +1414,11 @@ function FaqPage({ session, onSendQuestion, sendingQuestion }) {
         <p style={styles.legalP}>In der Nachrichten-Übersicht zeigt eine rote Zahl an jeder Unterhaltung, wie viele ungelesene Nachrichten dort warten.</p>
       </FaqItem>
 
+      <h2 style={{ ...styles.profileSectionTitle, marginTop: 28 }}>NoCashClub als App</h2>
+      <FaqItem q="Kann ich NoCashClub als App auf mein Handy holen?">
+        <p style={styles.legalP}>Ja, ganz ohne App Store. Am iPhone: Seite in Safari öffnen, unten auf das Teilen-Symbol tippen, dann "Zum Home-Bildschirm". Am Android-Handy: Seite in Chrome öffnen, oben rechts die drei Punkte, dann "App installieren" (manchmal schlägt Chrome das auch von selbst vor). Danach liegt NoCashClub als eigenes Symbol auf deinem Startbildschirm und öffnet sich im Vollbild, wie eine echte App.</p>
+      </FaqItem>
+
       <div style={{ marginTop: 28 }}>
         <FaqContactForm session={session} onSend={onSendQuestion} sending={sendingQuestion} />
       </div>
@@ -1452,6 +1484,9 @@ export default function App() {
   const [listingReports, setListingReports] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [myAddress, setMyAddress] = useState("");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const [addressSaving, setAddressSaving] = useState(false);
   const [favoriteBusyId, setFavoriteBusyId] = useState(null);
   const [savedSearches, setSavedSearches] = useState([]);
@@ -1567,6 +1602,13 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.pushManager.getSubscription().then((sub) => setPushEnabled(!!sub));
+    }).catch(() => {});
+  }, [session]);
+
   async function loadOwnProfile(userId) {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (data) setProfile(data);
@@ -1584,6 +1626,40 @@ export default function App() {
   async function fetchMyAddress(userId) {
     const { data } = await supabase.from("shipping_addresses").select("address").eq("user_id", userId).maybeSingle();
     setMyAddress(data?.address || "");
+  }
+
+  async function enablePushNotifications() {
+    if (!session) return;
+    setPushError(null);
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushError("Dein Browser unterstützt leider keine Push-Benachrichtigungen.");
+      return;
+    }
+    setPushBusy(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushError("Du hast Benachrichtigungen nicht erlaubt. Du kannst das jederzeit in den Browser-/Geräteeinstellungen nachholen.");
+        setPushBusy(false);
+        return;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+      const raw = subscription.toJSON();
+      const { error: subErr } = await supabase.from("push_subscriptions").upsert({
+        user_id: session.user.id, endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth,
+      }, { onConflict: "endpoint" });
+      if (subErr) throw subErr;
+      setPushEnabled(true);
+    } catch (e) {
+      setPushError("Konnte Benachrichtigungen nicht aktivieren: " + (e?.message || "unbekannter Fehler"));
+    } finally { setPushBusy(false); }
   }
 
   async function saveMyAddress(address) {
@@ -2556,7 +2632,7 @@ export default function App() {
           onMarkRead={markConversationRead} onDeleteMessage={deleteMessage} onDeleteConversation={deleteConversation} myAddress={myAddress}
         />
       ) : page === "profil" && session && profile ? (
-        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} myAddress={myAddress} onSaveAddress={saveMyAddress} addressSaving={addressSaving} />
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} myAddress={myAddress} onSaveAddress={saveMyAddress} addressSaving={addressSaving} pushEnabled={pushEnabled} pushBusy={pushBusy} pushError={pushError} onEnablePush={enablePushNotifications} />
       ) : page === "faq" ? (
         <FaqPage session={session} onSendQuestion={sendQuestionToAdmin} sendingQuestion={sendingQuestion} />
       ) : page.startsWith("user-") ? (
