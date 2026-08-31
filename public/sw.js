@@ -38,3 +38,31 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(event.request))
   );
 });
+
+// Push-Benachrichtigung anzeigen
+self.addEventListener("push", (event) => {
+  let data = { title: "NoCashClub", body: "Du hast eine neue Benachrichtigung.", url: "/" };
+  try { data = { ...data, ...event.data.json() }; } catch (e) {}
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/" },
+    })
+  );
+});
+
+// Beim Antippen der Benachrichtigung die App öffnen bzw. in den Vordergrund holen
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsArr) => {
+      for (const client of clientsArr) {
+        if ("focus" in client) { client.focus(); client.navigate?.(targetUrl); return; }
+      }
+      return self.clients.openWindow(targetUrl);
+    })
+  );
+});
