@@ -2568,7 +2568,7 @@ export default function App() {
       )}
       <style>{`
         * { box-sizing: border-box; }
-        body { margin: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        body { margin: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; padding-bottom: env(safe-area-inset-bottom); }
         button, input, textarea, select { font: inherit; color: inherit; }
         ::selection { background: ${COLORS.lime}; color: ${COLORS.ink}; }
         .mc-btn { transition: transform .15s ease, box-shadow .15s ease; }
@@ -3044,7 +3044,7 @@ export default function App() {
 
 const styles = {
   page: { fontFamily: "'Inter', sans-serif", background: `radial-gradient(ellipse 1200px 600px at 50% -10%, #22261f 0%, ${COLORS.paper} 55%)`, backgroundColor: COLORS.paper, color: COLORS.ink, minHeight: "100vh" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 32px", borderBottom: `1px solid ${COLORS.hairline}`, background: "rgba(26,28,27,0.92)", backdropFilter: "blur(6px)", position: "sticky", top: 0, zIndex: 5, boxShadow: "0 1px 0 rgba(255,255,255,0.03), 0 8px 20px rgba(0,0,0,0.2)" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "calc(18px + env(safe-area-inset-top)) 32px 18px", borderBottom: `1px solid ${COLORS.hairline}`, background: "rgba(26,28,27,0.92)", backdropFilter: "blur(6px)", position: "sticky", top: 0, zIndex: 5, boxShadow: "0 1px 0 rgba(255,255,255,0.03), 0 8px 20px rgba(0,0,0,0.2)" },
   logo: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: "0.005em", color: COLORS.lime },
   logoRow: { display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 },
   logoWordmark: { height: 34, width: "auto", display: "block" },
