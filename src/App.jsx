@@ -172,7 +172,7 @@ function PawCoin({ size = 22 }) {
       </defs>
       <circle cx="20" cy="20" r="19" fill="url(#goldGrad)" stroke={COLORS.ink} strokeWidth="1.5" />
       <circle cx="20" cy="20" r="14.5" fill="none" stroke={COLORS.ink} strokeWidth="0.75" opacity="0.5" />
-      <text x="20" y="27" textAnchor="middle" fontFamily="'Inter', sans-serif" fontSize="19" fontWeight="600" fill={COLORS.ink}>N</text>
+      <text x="20" y="27" textAnchor="middle" fontFamily="'Inter', sans-serif" fontSize="19" fontWeight="600" fill={COLORS.ink}>C</text>
     </svg>
   );
 }
