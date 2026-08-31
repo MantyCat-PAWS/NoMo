@@ -11,7 +11,8 @@ function NoCashClubCrest({ size = 34 }) {
       <circle cx="30" cy="51" r="1.4" fill={COLORS.lime} />
       <circle cx="9" cy="30" r="1.4" fill={COLORS.lime} />
       <circle cx="51" cy="30" r="1.4" fill={COLORS.lime} />
-      <text x="30" y="40" textAnchor="middle" fontFamily="'Inter', sans-serif" fontSize="30" fontWeight="600" fill={COLORS.lime}>N</text>
+      <circle cx="24" cy="30" r="10" fill="none" stroke={COLORS.lime} strokeWidth="2" />
+      <circle cx="36" cy="30" r="10" fill={COLORS.lime} opacity="0.88" />
     </svg>
   );
 }
@@ -2591,6 +2592,7 @@ export default function App() {
 
       <header style={styles.header}>
         <button style={styles.logoRow} onClick={() => { window.location.hash = ""; }} aria-label="Zur Startseite">
+          <NoCashClubCrest size={30} />
           <span style={styles.logoWordmarkText}>NoCash<span style={styles.logoWordmarkAccent}>Club</span></span>
         </button>
         <div style={styles.headerRight}>
@@ -2607,7 +2609,7 @@ export default function App() {
                 </button>
               )}
               {profile?.avatar && avatarSrc(profile.avatar) && <img src={avatarSrc(profile.avatar)} alt="" style={styles.avatarImgTiny} />}
-              <b>{profile ? profile.display_name : session.user.email}</b>
+              <b>Hey, {profile ? profile.display_name : session.user.email}</b>
               {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
               {!profile && <span style={styles.authError}>Profil konnte nicht geladen werden</span>}
               {profile && <button style={styles.logoutLink} onClick={() => { window.location.hash = "profil"; }}>profil{totalNewSearchMatches > 0 ? ` (${totalNewSearchMatches})` : ""}</button>}
@@ -3044,7 +3046,7 @@ export default function App() {
 
 const styles = {
   page: { fontFamily: "'Inter', sans-serif", background: `radial-gradient(ellipse 1200px 600px at 50% -10%, #22261f 0%, ${COLORS.paper} 55%)`, backgroundColor: COLORS.paper, color: COLORS.ink, minHeight: "100vh" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "calc(18px + env(safe-area-inset-top)) 32px 18px", borderBottom: `1px solid ${COLORS.hairline}`, background: "rgba(26,28,27,0.92)", backdropFilter: "blur(6px)", position: "sticky", top: 0, zIndex: 5, boxShadow: "0 1px 0 rgba(255,255,255,0.03), 0 8px 20px rgba(0,0,0,0.2)" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "calc(18px + env(safe-area-inset-top)) 32px 18px", borderBottom: "1px solid transparent", borderImage: `linear-gradient(90deg, ${COLORS.lime} 0%, ${COLORS.hairline} 35%) 1`, background: "rgba(26,28,27,0.92)", backdropFilter: "blur(6px)", position: "sticky", top: 0, zIndex: 5, boxShadow: "0 1px 0 rgba(255,255,255,0.03), 0 8px 20px rgba(0,0,0,0.2)" },
   logo: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: "0.005em", color: COLORS.lime },
   logoRow: { display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 },
   logoWordmark: { height: 34, width: "auto", display: "block" },
@@ -3053,7 +3055,7 @@ const styles = {
   logoImg: { height: 34, width: "auto" },
   headerRight: { fontSize: 13, color: COLORS.muted },
   whoami: { fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  balancePill: { display: "inline-flex", alignItems: "center", gap: 4, background: COLORS.paper, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "2px 10px 2px 6px", fontWeight: 600 },
+  balancePill: { display: "inline-flex", alignItems: "center", gap: 5, background: "linear-gradient(180deg, rgba(240,213,126,0.16) 0%, rgba(143,107,26,0.10) 100%)", border: "1.5px solid #C9A227", borderRadius: 20, padding: "2px 12px 2px 6px", fontWeight: 700, color: "#F0D57E" },
   reportPillBtn: { background: COLORS.rust, color: "#fff", border: "none", borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   tradePill: { background: COLORS.moss, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
   msgPillBtn: { background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
