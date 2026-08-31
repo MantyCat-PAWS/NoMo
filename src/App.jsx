@@ -68,17 +68,47 @@ const COLORS = {
   muted: "#9BA19B",
 };
 const REGIONS = [
-  { id: "burgenland", label: "Burgenland" },
-  { id: "kaernten", label: "Kärnten" },
-  { id: "niederoesterreich", label: "Niederösterreich" },
-  { id: "oberoesterreich", label: "Oberösterreich" },
-  { id: "salzburg", label: "Salzburg" },
-  { id: "steiermark", label: "Steiermark" },
-  { id: "tirol", label: "Tirol" },
-  { id: "vorarlberg", label: "Vorarlberg" },
-  { id: "wien", label: "Wien" },
-  { id: "andere", label: "Außerhalb Österreichs" },
+  { id: "burgenland", label: "Burgenland", country: "at" },
+  { id: "kaernten", label: "Kärnten", country: "at" },
+  { id: "niederoesterreich", label: "Niederösterreich", country: "at" },
+  { id: "oberoesterreich", label: "Oberösterreich", country: "at" },
+  { id: "salzburg", label: "Salzburg", country: "at" },
+  { id: "steiermark", label: "Steiermark", country: "at" },
+  { id: "tirol", label: "Tirol", country: "at" },
+  { id: "vorarlberg", label: "Vorarlberg", country: "at" },
+  { id: "wien", label: "Wien", country: "at" },
+  { id: "de_bw", label: "Baden-Württemberg", country: "de" },
+  { id: "de_by", label: "Bayern", country: "de" },
+  { id: "de_be", label: "Berlin", country: "de" },
+  { id: "de_bb", label: "Brandenburg", country: "de" },
+  { id: "de_hb", label: "Bremen", country: "de" },
+  { id: "de_hh", label: "Hamburg", country: "de" },
+  { id: "de_he", label: "Hessen", country: "de" },
+  { id: "de_mv", label: "Mecklenburg-Vorpommern", country: "de" },
+  { id: "de_ni", label: "Niedersachsen", country: "de" },
+  { id: "de_nrw", label: "Nordrhein-Westfalen", country: "de" },
+  { id: "de_rp", label: "Rheinland-Pfalz", country: "de" },
+  { id: "de_sl", label: "Saarland", country: "de" },
+  { id: "de_sn", label: "Sachsen", country: "de" },
+  { id: "de_st", label: "Sachsen-Anhalt", country: "de" },
+  { id: "de_sh", label: "Schleswig-Holstein", country: "de" },
+  { id: "de_th", label: "Thüringen", country: "de" },
+  { id: "andere", label: "Anderswo", country: "andere" },
 ];
+
+// Politische Bezirke & Statutarstädte pro österreichischem Bundesland, zur genaueren Eingrenzung.
+const AT_DISTRICTS = {
+  burgenland: ["Eisenstadt (Stadt)", "Rust (Stadt)", "Eisenstadt-Umgebung", "Güssing", "Jennersdorf", "Mattersburg", "Neusiedl am See", "Oberpullendorf", "Oberwart"],
+  kaernten: ["Klagenfurt (Stadt)", "Villach (Stadt)", "Feldkirchen", "Hermagor", "Klagenfurt-Land", "Sankt Veit an der Glan", "Spittal an der Drau", "Villach-Land", "Völkermarkt", "Wolfsberg"],
+  niederoesterreich: ["Krems (Stadt)", "St. Pölten (Stadt)", "Waidhofen an der Ybbs (Stadt)", "Wiener Neustadt (Stadt)", "Amstetten", "Baden", "Bruck an der Leitha", "Gänserndorf", "Gmünd", "Hollabrunn", "Horn", "Korneuburg", "Krems-Land", "Lilienfeld", "Melk", "Mistelbach", "Mödling", "Neunkirchen", "St. Pölten-Land", "Scheibbs", "Tulln", "Waidhofen an der Thaya", "Wiener Neustadt-Land", "Zwettl"],
+  oberoesterreich: ["Linz (Stadt)", "Steyr (Stadt)", "Wels (Stadt)", "Braunau am Inn", "Eferding", "Freistadt", "Gmunden", "Grieskirchen", "Kirchdorf an der Krems", "Linz-Land", "Perg", "Ried im Innkreis", "Rohrbach", "Schärding", "Steyr-Land", "Urfahr-Umgebung", "Vöcklabruck", "Wels-Land"],
+  salzburg: ["Salzburg (Stadt)", "Hallein", "Salzburg-Umgebung", "St. Johann im Pongau", "Tamsweg", "Zell am See"],
+  steiermark: ["Graz (Stadt)", "Bruck-Mürzzuschlag", "Deutschlandsberg", "Graz-Umgebung", "Hartberg-Fürstenfeld", "Leibnitz", "Leoben", "Liezen", "Murau", "Murtal", "Südoststeiermark", "Voitsberg", "Weiz"],
+  tirol: ["Innsbruck (Stadt)", "Imst", "Innsbruck-Land", "Kitzbühel", "Kufstein", "Landeck", "Lienz", "Reutte", "Schwaz"],
+  vorarlberg: ["Bludenz", "Bregenz", "Dornbirn", "Feldkirch"],
+  wien: ["Wien"],
+};
+
 const CATS = [
   { id: "mode_beauty", label: "Mode & Beauty", icon: "👗", physical: true },
   { id: "elektronik", label: "Elektronik & Technik", icon: "📱", physical: true },
@@ -1173,7 +1203,7 @@ function AgbPage() {
         <ul style={styles.legalUl}>
           <li>Angebote müssen wahrheitsgemäß, vollständig und rechtmäßig sein.</li>
           <li>Verboten ist das Einstellen von Angeboten, die gegen geltendes Recht verstoßen (u. a. gefälschte, gestohlene, gefährliche oder in Österreich verbotene Gegenstände, Dienstleistungen ohne erforderliche Berechtigung).</li>
-          <li>Die steuerliche Behandlung der eigenen Angebote (z. B. Umsatzsteuer bei Tauschumsätzen, Einkommensteuer bei wiederholter/gewerblicher Tätigkeit) liegt in der alleinigen Verantwortung der jeweiligen Nutzer:innen.</li>
+          <li>Die steuerliche Behandlung der eigenen Angebote liegt in der alleinigen Verantwortung der jeweiligen Nutzer:innen. Das gilt insbesondere für Unternehmer:innen: Auch der Tausch von Waren und das Erbringen von Dienstleistungen gegen {CURRENCY} oder im Rahmen eines direkten 1:1-Tauschs stellt einen steuerlich relevanten Vorgang dar (u. a. Umsatzsteuer, Einkommensteuer) und ist dem Finanzamt gegenüber offenzulegen, unabhängig davon, dass kein Bargeld fließt. Wir empfehlen, sich bei gewerblicher oder wiederholter Nutzung von einer Steuerberatung zur konkreten Behandlung im Einzelfall beraten zu lassen.</li>
           <li>Nutzer:innen, die als Unternehmer:innen auftreten, sind für die Einhaltung ihrer eigenen Informations-, Gewährleistungs- und ggf. Rücktrittsrechtspflichten gegenüber Konsument:innen selbst verantwortlich.</li>
         </ul>
       </LegalSection>
@@ -1438,11 +1468,12 @@ export default function App() {
   const [typeFilter, setTypeFilter] = useState("biete");
   const [shipFilter, setShipFilter] = useState("alle");
   const [regionFilter, setRegionFilter] = useState("alle");
+  const [districtFilter, setDistrictFilter] = useState("alle");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+  const [form, setForm] = useState({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [editingListingId, setEditingListingId] = useState(null);
@@ -1897,7 +1928,7 @@ export default function App() {
       if (editingListingId) {
         const { error: updErr } = await supabase.from("listings").update({
           title: form.title.trim(), category: form.category, description: form.description.trim(),
-          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region,
+          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region, district: form.district || null,
           image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
           listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
         }).eq("id", editingListingId);
@@ -1906,14 +1937,14 @@ export default function App() {
         const code = String(listings.length + 1).padStart(4, "0");
         const { error: insErr } = await supabase.from("listings").insert({
           code, title: form.title.trim(), category: form.category, description: form.description.trim(),
-          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region,
+          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region, district: form.district || null,
           owner_id: session.user.id, status: "verfuegbar", image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
           listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
         });
         if (insErr) throw insErr;
       }
 
-      setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+      setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
       setImageFiles([]);
       setImagePreviews([]);
       setExistingImageUrls([]);
@@ -1935,6 +1966,7 @@ export default function App() {
       shippingEuro: listing.shipping_paws ? String(listing.shipping_paws * EURO_TO_PAW) : "",
       location: listing.location || "Traun",
       region: listing.region || "oberoesterreich",
+      district: listing.district || "",
       sellerType: listing.seller_type || "privat",
       listingType: listing.listing_type || "biete",
       maxOfferPaws: listing.max_offer_paws != null ? String(listing.max_offer_paws) : "",
@@ -1958,7 +1990,7 @@ export default function App() {
     setExistingImageUrls([]);
     setImageFiles([]);
     setImagePreviews([]);
-    setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+    setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
   }
 
 
@@ -2352,12 +2384,13 @@ export default function App() {
         (shipFilter === "versand" && l.ships !== false) ||
         (shipFilter === "abholung" && l.ships === false);
       const matchesRegion = regionFilter === "alle" || (l.region || "oberoesterreich") === regionFilter;
+      const matchesDistrict = districtFilter === "alle" || l.district === districtFilter;
       const q = query.trim().toLowerCase();
       const matchesQuery = !q || l.title.toLowerCase().includes(q) || l.description.toLowerCase().includes(q);
       const min = priceMin === "" ? null : Number(priceMin);
       const max = priceMax === "" ? null : Number(priceMax);
       const matchesPrice = (min === null || l.price >= min) && (max === null || l.price <= max);
-      return matchesType && matchesCat && matchesShip && matchesRegion && matchesQuery && matchesPrice;
+      return matchesType && matchesCat && matchesShip && matchesRegion && matchesDistrict && matchesQuery && matchesPrice;
     })
     .sort((a, b) => {
       if (sortBy === "preis_auf") return a.price - b.price;
@@ -2571,12 +2604,6 @@ export default function App() {
               </div>
             </div>
 
-            {session && (
-              <button style={styles.saveSearchLink} disabled={savingSearch} onClick={saveCurrentSearch}>
-                {savingSearch ? "wird gespeichert…" : "🔔 Als Suchagent speichern"}
-              </button>
-            )}
-
             <div style={styles.sidebarBlock}>
               <div style={styles.filterLabel}>Sortierung</div>
               <select className="mc-input" style={{ ...styles.input, width: "100%" }} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
@@ -2614,11 +2641,28 @@ export default function App() {
 
             <div style={styles.sidebarBlock}>
               <div style={styles.filterLabel}>Region</div>
-              <select className="mc-input" style={styles.input} value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
+              <select className="mc-input" style={styles.input} value={regionFilter} onChange={(e) => { setRegionFilter(e.target.value); setDistrictFilter("alle"); }}>
                 <option value="alle">Alle Regionen</option>
-                {REGIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                <optgroup label="Österreich">
+                  {REGIONS.filter((r) => r.country === "at").map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </optgroup>
+                <optgroup label="Deutschland">
+                  {REGIONS.filter((r) => r.country === "de").map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </optgroup>
+                <option value="andere">Anderswo</option>
               </select>
+              {AT_DISTRICTS[regionFilter] && (
+                <select className="mc-input" style={{ ...styles.input, marginTop: 8 }} value={districtFilter} onChange={(e) => setDistrictFilter(e.target.value)}>
+                  <option value="alle">Alle Bezirke</option>
+                  {AT_DISTRICTS[regionFilter].map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
             </div>
+            {session && (
+              <button style={styles.saveSearchLink} disabled={savingSearch} onClick={saveCurrentSearch}>
+                {savingSearch ? "wird gespeichert…" : "🔔 Als Suchagent speichern"}
+              </button>
+            )}
           </aside>
 
           <div style={styles.boardMain}>
@@ -2746,10 +2790,25 @@ export default function App() {
               </label>
               <label style={styles.label}>
                 Region
-                <select className="mc-input" style={styles.input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })}>
-                  {REGIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                <select className="mc-input" style={styles.input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value, district: "" })}>
+                  <optgroup label="Österreich">
+                    {REGIONS.filter((r) => r.country === "at").map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                  </optgroup>
+                  <optgroup label="Deutschland">
+                    {REGIONS.filter((r) => r.country === "de").map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                  </optgroup>
+                  <option value="andere">Anderswo</option>
                 </select>
               </label>
+              {AT_DISTRICTS[form.region] && (
+                <label style={styles.label}>
+                  Bezirk
+                  <select className="mc-input" style={styles.input} value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })}>
+                    <option value="">Kein Bezirk angegeben</option>
+                    {AT_DISTRICTS[form.region].map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </label>
+              )}
             </div>
             <button type="submit" className="mc-btn" style={styles.primaryBtn} disabled={saving}>{saving ? "Wird gespeichert…" : editingListingId ? "Änderungen speichern" : "Zettel aufhängen"}</button>
           </form>
@@ -2992,7 +3051,7 @@ const styles = {
   priceRow: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4 },
   priceValue: { fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 20, color: COLORS.moss },
   priceLabel: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.muted },
-  shippingLine: { fontSize: 11.5, color: COLORS.rust, marginBottom: 10, fontFamily: "'Inter', sans-serif" },
+  shippingLine: { fontSize: 11.5, color: COLORS.ink, marginBottom: 10, fontFamily: "'Inter', sans-serif" },
   deleteLink: { marginTop: "auto", background: "none", border: "none", padding: 0, fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: COLORS.rust, textDecoration: "underline", cursor: "pointer", alignSelf: "flex-start" },
   actionRow: { marginTop: "auto", display: "flex", flexDirection: "column", gap: 6 },
   requestBtn: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 12.5, background: COLORS.lime, color: "#fff", border: "none", borderRadius: 6, padding: "9px 12px", cursor: "pointer" },
