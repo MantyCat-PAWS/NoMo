@@ -1109,6 +1109,25 @@ function AddressEditor({ address, onSave, saving }) {
   );
 }
 
+function ReferralSection({ referralCode }) {
+  const [copied, setCopied] = useState(false);
+  if (!referralCode) return null;
+  const link = `${window.location.origin}/#ref-${referralCode}`;
+  return (
+    <div style={styles.verifyBox}>
+      <h2 style={styles.profileSectionTitle}>Freund:innen werben</h2>
+      <p style={styles.legalP}>Teile deinen Link. Sobald sich jemand darüber anmeldet und sich später verifizieren lässt, bekommst du 5 {CURRENCY} geschenkt.</p>
+      <div style={styles.wishRow}>
+        <input className="mc-input" style={{ ...styles.input, flex: 1 }} readOnly value={link} onFocus={(e) => e.target.select()} />
+        <button type="button" className="mc-btn" style={styles.primaryBtn}
+          onClick={() => { navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+          {copied ? "Kopiert ✓" : "Link kopieren"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PushNotificationSection({ enabled, busy, error, onEnable }) {
   return (
     <div style={styles.verifyBox}>
@@ -1138,6 +1157,7 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
         <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
       </div>
       <PushNotificationSection enabled={pushEnabled} busy={pushBusy} error={pushError} onEnable={onEnablePush} />
+      <ReferralSection referralCode={profile?.referral_code} />
       <VerificationSection profile={profile} onSubmit={onSubmitVerification} uploading={verificationUploading} />
       <AddressEditor address={myAddress} onSave={onSaveAddress} saving={addressSaving} />
       <FavoritesSection listings={favoriteListings} onView={onViewFavorite} />
@@ -1454,6 +1474,15 @@ export default function App() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  useEffect(() => {
+    if (page.startsWith("ref-")) {
+      const code = page.slice(4).trim();
+      if (code) { try { localStorage.setItem("nocashclub_referral_code", code); } catch (e) {} }
+      window.location.hash = "";
+    }
+  }, [page]);
+
   const isLegalPage = ["impressum", "agb", "datenschutz"].includes(page);
 
   const [session, setSession] = useState(null);
@@ -1849,12 +1878,15 @@ export default function App() {
     if (!email.trim() || !password || !displayName.trim()) { setAuthError("Bitte alle Felder ausfüllen."); return; }
     setAuthBusy(true);
     try {
+      let referralCode = null;
+      try { referralCode = localStorage.getItem("nocashclub_referral_code"); } catch (e) {}
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { data: { display_name: displayName.trim() } },
+        options: { data: { display_name: displayName.trim(), ...(referralCode ? { referral_code: referralCode } : {}) } },
       });
       if (signUpError) { setAuthError(signUpError.message); setAuthBusy(false); return; }
+      try { localStorage.removeItem("nocashclub_referral_code"); } catch (e) {}
       if (!data.session) {
         setAuthInfo("Fast fertig! Bitte bestätige deine E-Mail-Adresse über den Link, den wir dir geschickt haben, und melde dich danach an.");
       }
