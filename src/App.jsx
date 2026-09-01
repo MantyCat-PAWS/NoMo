@@ -49,6 +49,7 @@ const AVATAR_IMAGES = [
 ];
 
 function avatarSrc(id) {
+  if (typeof id === "string" && (id.startsWith("data:image") || id.startsWith("http"))) return id;
   const idx = Number(id);
   if (Number.isInteger(idx) && idx >= 0 && idx < AVATAR_IMAGES.length) return AVATAR_IMAGES[idx];
   return null;
@@ -123,7 +124,9 @@ const CHAT_ROOMS = [
   { id: "handwerk", label: "Handwerk", emoji: "🔨" },
   { id: "baby_kind", label: "Baby & Kind", emoji: "👶" },
   { id: "kochen_backen", label: "Kochen & Backen", emoji: "🍳" },
-  { id: "musik", label: "Musik", emoji: "🎵" },
+  { id: "musik_film", label: "Musik & Film", emoji: "🎵" },
+  { id: "garten_pflanzen", label: "Garten & Pflanzen", emoji: "🌱" },
+  { id: "sonstiges", label: "Sonstiges", emoji: "💬" },
 ];
 const CATS = [
   { id: "mode_beauty", label: "Mode & Beauty", icon: "👗", physical: true },
@@ -483,12 +486,96 @@ function VerificationSection({ profile, onSubmit, uploading }) {
   );
 }
 
+const DRAW_COLORS = ["#EDEFED", "#2ECC71", "#E05B4C", "#F0D57E", "#4C9BE0", "#1A1C1B"];
+
+function AvatarDrawPad({ onSave, onCancel }) {
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
+  const lastPointRef = useRef(null);
+  const [color, setColor] = useState(DRAW_COLORS[1]);
+  const [brush, setBrush] = useState(6);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#232626";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  function getPos(e) {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    drawingRef.current = true;
+    lastPointRef.current = getPos(e);
+    canvasRef.current.setPointerCapture?.(e.pointerId);
+  }
+  function moveDraw(e) {
+    if (!drawingRef.current) return;
+    e.preventDefault();
+    const ctx = canvasRef.current.getContext("2d");
+    const pos = getPos(e);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = brush;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    lastPointRef.current = pos;
+  }
+  function endDraw() { drawingRef.current = false; }
+
+  function clearCanvas() {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#232626";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function handleSave() {
+    const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.85);
+    onSave(dataUrl);
+  }
+
+  return (
+    <div style={styles.drawPadBox}>
+      <canvas
+        ref={canvasRef} width={280} height={280} style={styles.drawCanvas}
+        onPointerDown={startDraw} onPointerMove={moveDraw} onPointerUp={endDraw} onPointerLeave={endDraw}
+      />
+      <div style={styles.drawToolRow}>
+        {DRAW_COLORS.map((c) => (
+          <button key={c} type="button" onClick={() => setColor(c)}
+            style={{ ...styles.drawSwatch, background: c, ...(color === c ? styles.drawSwatchActive : {}) }} aria-label={`Farbe ${c}`} />
+        ))}
+        <button type="button" style={{ ...styles.drawSwatch, ...styles.drawBrushBtn, ...(brush === 3 ? styles.drawSwatchActive : {}) }} onClick={() => setBrush(3)}>·</button>
+        <button type="button" style={{ ...styles.drawSwatch, ...styles.drawBrushBtn, ...(brush === 6 ? styles.drawSwatchActive : {}) }} onClick={() => setBrush(6)}>●</button>
+        <button type="button" style={{ ...styles.drawSwatch, ...styles.drawBrushBtn, ...(brush === 12 ? styles.drawSwatchActive : {}) }} onClick={() => setBrush(12)}>⬤</button>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={handleSave}>Als Profilbild speichern</button>
+        <button type="button" style={styles.smallBtnGhostInk} onClick={clearCanvas}>Löschen</button>
+        <button type="button" style={styles.smallBtnGhostInk} onClick={onCancel}>Abbrechen</button>
+      </div>
+    </div>
+  );
+}
+
 function ProfileEditor({ profile, onSave, saving }) {
   const [avatar, setAvatar] = useState(profile.avatar || "0");
   const [motto, setMotto] = useState(profile.motto || "");
   const [bio, setBio] = useState(profile.bio || "");
   const [wishlist, setWishlist] = useState(profile.wishlist || []);
   const [wishDraft, setWishDraft] = useState("");
+  const [showDrawPad, setShowDrawPad] = useState(false);
+  const isCustomAvatar = typeof avatar === "string" && avatar.startsWith("data:image");
 
   function addWish() {
     const v = wishDraft.trim();
@@ -503,13 +590,28 @@ function ProfileEditor({ profile, onSave, saving }) {
   return (
     <div style={styles.profileForm}>
       <div style={styles.label}>Avatar</div>
-      <div style={styles.avatarRow}>
-        {AVATAR_IMAGES.map((src, i) => (
-          <button key={i} type="button" className="mc-avatar-btn" onClick={() => setAvatar(String(i))} style={{ ...styles.avatarImgBtn, ...(avatar === String(i) ? styles.avatarImgBtnActive : {}) }}>
-            <img src={src} alt={`Avatar ${i + 1}`} style={styles.avatarImgThumb} />
-          </button>
-        ))}
-      </div>
+      {showDrawPad ? (
+        <AvatarDrawPad
+          onSave={(dataUrl) => { setAvatar(dataUrl); setShowDrawPad(false); }}
+          onCancel={() => setShowDrawPad(false)}
+        />
+      ) : (
+        <>
+          <div style={styles.avatarRow}>
+            {AVATAR_IMAGES.map((src, i) => (
+              <button key={i} type="button" className="mc-avatar-btn" onClick={() => setAvatar(String(i))} style={{ ...styles.avatarImgBtn, ...(avatar === String(i) ? styles.avatarImgBtnActive : {}) }}>
+                <img src={src} alt={`Avatar ${i + 1}`} style={styles.avatarImgThumb} />
+              </button>
+            ))}
+            {isCustomAvatar && (
+              <button type="button" className="mc-avatar-btn" style={{ ...styles.avatarImgBtn, ...styles.avatarImgBtnActive }}>
+                <img src={avatar} alt="Dein gezeichnetes Bild" style={styles.avatarImgThumb} />
+              </button>
+            )}
+          </div>
+          <button type="button" style={styles.smallBtnGhost} onClick={() => setShowDrawPad(true)}>🖌️ Selbst zeichnen</button>
+        </>
+      )}
       <label style={styles.label}>
         Motto
         <input className="mc-input" style={styles.input} value={motto} maxLength={50} onChange={(e) => setMotto(e.target.value)} placeholder="z. B. Tauscht am liebsten Bücher & Pflanzen" />
@@ -3238,6 +3340,12 @@ const styles = {
   publicProfileHead: { display: "flex", alignItems: "center", gap: 16, marginBottom: 12 },
   publicProfileAvatar: { width: 64, height: 64, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
   avatarRow: { display: "flex", gap: 8, flexWrap: "wrap" },
+  drawPadBox: { display: "flex", flexDirection: "column", alignItems: "flex-start" },
+  drawCanvas: { width: 220, height: 220, borderRadius: 12, border: `1.5px solid ${COLORS.stone}`, touchAction: "none", cursor: "crosshair" },
+  drawToolRow: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" },
+  drawSwatch: { width: 28, height: 28, borderRadius: "50%", border: `2px solid ${COLORS.stone}`, cursor: "pointer", padding: 0 },
+  drawSwatchActive: { border: `2px solid ${COLORS.ink}`, boxShadow: `0 0 0 2px ${COLORS.lime}` },
+  drawBrushBtn: { background: COLORS.card, color: COLORS.ink, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 },
   avatarBtn: { fontSize: 20, background: COLORS.paper, border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer" },
   avatarBtnActive: { border: `1.5px solid ${COLORS.ink}`, background: COLORS.lime },
   avatarImgBtn: { padding: 3, background: "none", border: `2px solid transparent`, borderRadius: "50%", cursor: "pointer", lineHeight: 0 },
