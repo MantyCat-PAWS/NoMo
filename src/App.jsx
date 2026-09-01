@@ -979,7 +979,7 @@ function VerificationImage({ path }) {
   return <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumbLarge} onError={() => setLoadError("Die Bild-URL konnte nicht angezeigt werden.")} />;
 }
 
-function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, busyId }) {
+function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, busyId }) {
   const [selectedId, setSelectedId] = useState(null);
   if (items.length === 0) return <div style={styles.inboxEmpty}>Keine offenen Meldungen.</div>;
   const selected = items.find((it) => it.id === selectedId);
@@ -1010,6 +1010,13 @@ function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, on
             <>
               <button style={styles.smallBtn} disabled={busy} onClick={() => { onApproveVerification(r); setSelectedId(null); }}>Verifizieren (+5 {CURRENCY})</button>
               <button style={styles.smallBtnGhost} disabled={busy} onClick={() => { onRejectVerification(r); setSelectedId(null); }}>Löschen / Ablehnen</button>
+            </>
+          )}
+          {selected.kind === "chat" && (
+            <>
+              <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onBlockChatUser(r); setSelectedId(null); }}>Nutzer sperren</button>
+              <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onDeleteChatMessage(r); setSelectedId(null); }}>Chatnachricht löschen</button>
+              <button style={styles.smallBtnGhost} disabled={busy} onClick={() => { onDismissChatReport(r); setSelectedId(null); }}>Meldung ignorieren</button>
             </>
           )}
         </div>
@@ -1098,7 +1105,7 @@ function AdminUserRow({ p, everReported, onSendMessage, sending, onAdjustBalance
   );
 }
 
-function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
+function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -1113,6 +1120,9 @@ function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing,
         onDismissContent={onDismissContent}
         onApproveVerification={onApproveVerification}
         onRejectVerification={onRejectVerification}
+        onBlockChatUser={onBlockChatUser}
+        onDeleteChatMessage={onDeleteChatMessage}
+        onDismissChatReport={onDismissChatReport}
         busyId={reportBusyId}
       />
 
@@ -1474,11 +1484,41 @@ function FaqContactForm({ session, onSend, sending }) {
   );
 }
 
-function ChatRoomView({ room, session, isAdmin, profilesById }) {
+const CHAT_REPORT_REASONS = ["Beleidigend / Hass", "Spam / Werbung", "Unangemessener Inhalt", "Sonstiges"];
+
+function ChatReportForm({ message, onSubmit, onCancel }) {
+  const [reason, setReason] = useState(CHAT_REPORT_REASONS[0]);
+  const [comment, setComment] = useState("");
+  const [sending, setSending] = useState(false);
+  return (
+    <div style={styles.chatReportBox}>
+      <label style={styles.label}>
+        Grund
+        <select className="mc-input" style={styles.input} value={reason} onChange={(e) => setReason(e.target.value)}>
+          {CHAT_REPORT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </label>
+      <label style={styles.label}>
+        Anmerkung (optional)
+        <input className="mc-input" style={styles.input} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="z. B. kurze Erklärung" />
+      </label>
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button type="button" style={styles.smallBtnRust} disabled={sending}
+          onClick={async () => { setSending(true); await onSubmit(message, reason, comment.trim()); setSending(false); }}>
+          {sending ? "…" : "Melden"}
+        </button>
+        <button type="button" style={styles.smallBtnGhostInk} onClick={onCancel}>Abbrechen</button>
+      </div>
+    </div>
+  );
+}
+
+function ChatRoomView({ room, session, isAdmin, profilesById, onReportMessage }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reportingId, setReportingId] = useState(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -1518,6 +1558,11 @@ function ChatRoomView({ room, session, isAdmin, profilesById }) {
     await supabase.from("chat_messages").delete().eq("id", id);
   }
 
+  async function handleReportSubmit(message, reason, comment) {
+    await onReportMessage(message, room.id, reason, comment);
+    setReportingId(null);
+  }
+
   return (
     <div style={styles.chatRoomBox}>
       <div style={styles.chatFeed}>
@@ -1536,11 +1581,17 @@ function ChatRoomView({ room, session, isAdmin, profilesById }) {
                   <div style={styles.chatMsgMeta}>
                     <a href={`#user-${m.user_id}`} style={author?.verified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{author?.display_name || "?"}</a>
                     <span style={styles.chatMsgTime}>{relativeTime(m.created_at)}</span>
+                    {!isMine && session && (
+                      <button type="button" style={styles.chatMsgReport} onClick={() => setReportingId(reportingId === m.id ? null : m.id)}>melden</button>
+                    )}
                     {(isMine || isAdmin) && (
                       <button type="button" style={styles.chatMsgDelete} onClick={() => deleteMessage(m.id)} aria-label="Löschen">×</button>
                     )}
                   </div>
                   <div style={styles.chatMsgText}>{m.text}</div>
+                  {reportingId === m.id && (
+                    <ChatReportForm message={m} onSubmit={handleReportSubmit} onCancel={() => setReportingId(null)} />
+                  )}
                 </div>
               </div>
             );
@@ -1561,7 +1612,7 @@ function ChatRoomView({ room, session, isAdmin, profilesById }) {
   );
 }
 
-function ChatPage({ session, isAdmin, profilesById }) {
+function ChatPage({ session, isAdmin, profilesById, onReportMessage }) {
   const [activeRoom, setActiveRoom] = useState(CHAT_ROOMS[0]);
   return (
     <div style={styles.legalPage}>
@@ -1575,7 +1626,7 @@ function ChatPage({ session, isAdmin, profilesById }) {
           </button>
         ))}
       </div>
-      <ChatRoomView room={activeRoom} session={session} isAdmin={isAdmin} profilesById={profilesById} />
+      <ChatRoomView room={activeRoom} session={session} isAdmin={isAdmin} profilesById={profilesById} onReportMessage={onReportMessage} />
     </div>
   );
 }
@@ -1728,6 +1779,7 @@ export default function App() {
   const [tradeOffers, setTradeOffers] = useState([]);
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [listingReports, setListingReports] = useState([]);
+  const [chatReports, setChatReports] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [myAddress, setMyAddress] = useState("");
   const [pushBusy, setPushBusy] = useState(false);
@@ -1788,13 +1840,14 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [{ data: profs }, { data: lst }, { data: rts }, { data: offs }, { data: reps }, { data: preqs }] = await Promise.all([
+      const [{ data: profs }, { data: lst }, { data: rts }, { data: offs }, { data: reps }, { data: preqs }, { data: chatReps }] = await Promise.all([
         supabase.from("profiles").select("*"),
         supabase.from("listings").select("*").order("created_at", { ascending: false }),
         supabase.from("ratings").select("*"),
         supabase.from("trade_offers").select("*"),
         supabase.from("listing_reports").select("*"),
         supabase.from("purchase_requests").select("*"),
+        supabase.from("chat_reports").select("*"),
       ]);
       const pMap = {};
       (profs || []).forEach((p) => { pMap[p.id] = p; });
@@ -1804,6 +1857,7 @@ export default function App() {
       setTradeOffers(offs || []);
       setListingReports(reps || []);
       setPurchaseRequests(preqs || []);
+      setChatReports(chatReps || []);
     } catch (e) {
       setError("Daten konnten nicht geladen werden.");
     } finally {
@@ -1942,8 +1996,16 @@ export default function App() {
       title: `${p.display_name} — Ausweis-Verifizierung`,
       subtitle: "Ausweisfoto zur Prüfung eingereicht.",
     }));
-    return [...a, ...b, ...c].sort((x, y) => (y.created_at || "").localeCompare(x.created_at || ""));
-  }, [openReports, openContentReports, pendingVerifications, profilesById]);
+    const d = chatReports.filter((r) => !r.resolved).map((r) => {
+      const room = CHAT_ROOMS.find((cr) => cr.id === r.room);
+      return {
+        id: `chat-${r.id}`, kind: "chat", kindLabel: "Chat", raw: r, created_at: r.created_at,
+        title: `${profilesById[r.reported_user_id]?.display_name || "?"} im Chat "${room?.label || r.room}"`,
+        subtitle: `gemeldet von ${profilesById[r.reported_by]?.display_name || "?"}, Grund: ${r.reason}${r.comment ? `: "${r.comment}"` : ""} — Nachricht: "${r.message_text}"`,
+      };
+    });
+    return [...a, ...b, ...c, ...d].sort((x, y) => (y.created_at || "").localeCompare(x.created_at || ""));
+  }, [openReports, openContentReports, pendingVerifications, chatReports, profilesById]);
 
   const reportedUserIds = useMemo(() => {
     const s = new Set();
@@ -2576,6 +2638,21 @@ export default function App() {
     } finally { setReportSubmittingId(null); }
   }
 
+  async function submitChatReport(message, room, reason, comment) {
+    if (!session) return;
+    setError(null);
+    try {
+      const { error: insErr } = await supabase.from("chat_reports").insert({
+        message_id: message.id, room, message_text: message.text,
+        reported_user_id: message.user_id, reported_by: session.user.id, reason, comment: comment || null,
+      });
+      if (insErr) throw insErr;
+      fetchAll();
+    } catch (e) {
+      setError("Meldung konnte nicht gesendet werden: " + (e?.message || "unbekannter Fehler"));
+    }
+  }
+
   async function removeReportedListing(report) {
     setReportActionId(report.id);
     setError(null);
@@ -2593,6 +2670,42 @@ export default function App() {
     setError(null);
     try {
       await supabase.from("listing_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Meldung konnte nicht bearbeitet werden.");
+    } finally { setReportActionId(null); }
+  }
+
+  async function blockChatReportedUser(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      const { error: rpcErr } = await supabase.rpc("admin_block_user", { target_id: report.reported_user_id });
+      if (rpcErr) throw rpcErr;
+      await supabase.from("chat_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Konnte Nutzer nicht sperren: " + (e?.message || "unbekannter Fehler"));
+    } finally { setReportActionId(null); }
+  }
+
+  async function deleteChatReportedMessage(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      if (report.message_id) await supabase.from("chat_messages").delete().eq("id", report.message_id);
+      await supabase.from("chat_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Nachricht konnte nicht gelöscht werden.");
+    } finally { setReportActionId(null); }
+  }
+
+  async function dismissChatReport(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      await supabase.from("chat_reports").update({ resolved: true }).eq("id", report.id);
       fetchAll();
     } catch (e) {
       setError("Meldung konnte nicht bearbeitet werden.");
@@ -2848,7 +2961,7 @@ export default function App() {
             <span style={styles.whoami}>
               {isAdmin && (
                 <button style={styles.reportPillBtn} onClick={() => { window.location.hash = "admin"; }}>
-                  Admin {(openReports.length + openContentReports.length + pendingVerifications.length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length})` : ""}
+                  Admin {(openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length})` : ""}
                 </button>
               )}
               {profile && (
@@ -2889,7 +3002,7 @@ export default function App() {
       ) : page === "faq" ? (
         <FaqPage session={session} onSendQuestion={sendQuestionToAdmin} sendingQuestion={sendingQuestion} />
       ) : page === "chat" ? (
-        <ChatPage session={session} isAdmin={isAdmin} profilesById={profilesById} />
+        <ChatPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportMessage={submitChatReport} />
       ) : page.startsWith("user-") ? (
         <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
       ) : page === "admin" && isAdmin ? (
@@ -2901,6 +3014,9 @@ export default function App() {
           onDismissContent={dismissContentReport}
           onApproveVerification={approveVerification}
           onRejectVerification={rejectVerification}
+          onBlockChatUser={blockChatReportedUser}
+          onDeleteChatMessage={deleteChatReportedMessage}
+          onDismissChatReport={dismissChatReport}
           reportBusyId={reportActionId || verificationActionId}
           users={adminUsersSorted}
           reportedUserIds={reportedUserIds}
@@ -3392,6 +3508,8 @@ const styles = {
   chatMsgTime: { color: COLORS.muted, fontSize: 11.5 },
   chatMsgText: { fontSize: 14, lineHeight: 1.5, marginTop: 2, wordBreak: "break-word" },
   chatMsgDelete: { background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", marginLeft: "auto" },
+  chatMsgReport: { background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", padding: 0, marginLeft: "auto" },
+  chatReportBox: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: 10, marginTop: 8, background: COLORS.paper },
   addressInsertBtn: { marginTop: 8, background: "none", border: `1px solid ${COLORS.hairline}`, color: COLORS.muted, borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   errorBar: { maxWidth: 700, margin: "20px auto 0", background: "#FCE9E1", border: `1px solid ${COLORS.rust}`, color: COLORS.rust, borderRadius: 6, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 },
   errorClose: { background: "none", border: "none", color: COLORS.rust, fontSize: 18, cursor: "pointer", lineHeight: 1 },
