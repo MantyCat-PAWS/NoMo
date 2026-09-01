@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 import { supabase } from "./supabaseClient";
 
@@ -117,6 +117,14 @@ const AT_DISTRICTS = {
   wien: ["Wien"],
 };
 
+const CHAT_ROOMS = [
+  { id: "basteln", label: "Basteln", emoji: "🎨" },
+  { id: "stricken", label: "Stricken & Häkeln", emoji: "🧶" },
+  { id: "handwerk", label: "Handwerk", emoji: "🔨" },
+  { id: "baby_kind", label: "Baby & Kind", emoji: "👶" },
+  { id: "kochen_backen", label: "Kochen & Backen", emoji: "🍳" },
+  { id: "musik", label: "Musik", emoji: "🎵" },
+];
 const CATS = [
   { id: "mode_beauty", label: "Mode & Beauty", icon: "👗", physical: true },
   { id: "elektronik", label: "Elektronik & Technik", icon: "📱", physical: true },
@@ -1360,6 +1368,112 @@ function FaqContactForm({ session, onSend, sending }) {
         onClick={async () => { const ok = await onSend(text.trim()); if (ok) { setSent(true); setText(""); } }}>
         {sending ? "Wird gesendet…" : "Frage senden"}
       </button>
+    </div>
+  );
+}
+
+function ChatRoomView({ room, session, isAdmin, profilesById }) {
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    supabase.from("chat_messages").select("*").eq("room", room.id).order("created_at", { ascending: true }).limit(200)
+      .then(({ data }) => { if (active) { setMessages(data || []); setLoading(false); } });
+
+    const channel = supabase.channel(`chat-${room.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `room=eq.${room.id}` }, (payload) => {
+        setMessages((prev) => [...prev, payload.new]);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages", filter: `room=eq.${room.id}` }, (payload) => {
+        setMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+      })
+      .subscribe();
+
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [room.id]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  async function sendMessage(e) {
+    e.preventDefault();
+    if (!draft.trim() || !session) return;
+    setSending(true);
+    const text = draft.trim();
+    setDraft("");
+    const { error } = await supabase.from("chat_messages").insert({ room: room.id, user_id: session.user.id, text });
+    if (error) setDraft(text);
+    setSending(false);
+  }
+
+  async function deleteMessage(id) {
+    await supabase.from("chat_messages").delete().eq("id", id);
+  }
+
+  return (
+    <div style={styles.chatRoomBox}>
+      <div style={styles.chatFeed}>
+        {loading ? (
+          <div style={styles.inboxEmpty}>Wird geladen…</div>
+        ) : messages.length === 0 ? (
+          <div style={styles.inboxEmpty}>Noch nichts los hier — schreib die erste Nachricht! {room.emoji}</div>
+        ) : (
+          messages.map((m) => {
+            const author = profilesById[m.user_id];
+            const isMine = session && m.user_id === session.user.id;
+            return (
+              <div key={m.id} style={styles.chatMsgRow}>
+                {author?.avatar && avatarSrc(author.avatar) && <img src={avatarSrc(author.avatar)} alt="" style={styles.avatarImgTiny} />}
+                <div style={{ flex: 1 }}>
+                  <div style={styles.chatMsgMeta}>
+                    <a href={`#user-${m.user_id}`} style={author?.verified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{author?.display_name || "?"}</a>
+                    <span style={styles.chatMsgTime}>{relativeTime(m.created_at)}</span>
+                    {(isMine || isAdmin) && (
+                      <button type="button" style={styles.chatMsgDelete} onClick={() => deleteMessage(m.id)} aria-label="Löschen">×</button>
+                    )}
+                  </div>
+                  <div style={styles.chatMsgText}>{m.text}</div>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={bottomRef} />
+      </div>
+      {session ? (
+        <form onSubmit={sendMessage} style={styles.convReplyRow}>
+          <input className="mc-input" style={{ ...styles.input, flex: 1 }} value={draft} maxLength={500}
+            onChange={(e) => setDraft(e.target.value)} placeholder={`Schreib was zu ${room.label}…`} />
+          <button type="submit" style={styles.smallBtn} disabled={!draft.trim() || sending}>{sending ? "…" : "Senden"}</button>
+        </form>
+      ) : (
+        <p style={styles.legalP}>Melde dich an, um im Chat mitzuschreiben.</p>
+      )}
+    </div>
+  );
+}
+
+function ChatPage({ session, isAdmin, profilesById }) {
+  const [activeRoom, setActiveRoom] = useState(CHAT_ROOMS[0]);
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+      <h1 style={styles.legalTitle}>Plausch-Ecke</h1>
+      <p style={styles.legalP}>Kein Zettel gerade passend? Quatsch einfach mit, tausch Tipps &amp; Tricks aus — nach Thema sortiert.</p>
+      <div style={styles.chatRoomTabs}>
+        {CHAT_ROOMS.map((r) => (
+          <button key={r.id} className="mc-tab" onClick={() => setActiveRoom(r)} style={{ ...styles.chatRoomTab, ...(activeRoom.id === r.id ? styles.chatRoomTabActive : {}) }}>
+            {r.emoji} {r.label}
+          </button>
+        ))}
+      </div>
+      <ChatRoomView room={activeRoom} session={session} isAdmin={isAdmin} profilesById={profilesById} />
     </div>
   );
 }
@@ -2640,6 +2754,9 @@ export default function App() {
                   Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length})` : ""}
                 </button>
               )}
+              {session && (
+                <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "chat"; }}>💬 Chat</button>
+              )}
               {profile?.avatar && avatarSrc(profile.avatar) && <img src={avatarSrc(profile.avatar)} alt="" style={styles.avatarImgTiny} />}
               <b>Hey, {profile ? profile.display_name : session.user.email}</b>
               {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
@@ -2669,6 +2786,8 @@ export default function App() {
         <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} myAddress={myAddress} onSaveAddress={saveMyAddress} addressSaving={addressSaving} pushEnabled={pushEnabled} pushBusy={pushBusy} pushError={pushError} onEnablePush={enablePushNotifications} />
       ) : page === "faq" ? (
         <FaqPage session={session} onSendQuestion={sendQuestionToAdmin} sendingQuestion={sendingQuestion} />
+      ) : page === "chat" ? (
+        <ChatPage session={session} isAdmin={isAdmin} profilesById={profilesById} />
       ) : page.startsWith("user-") ? (
         <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
       ) : page === "admin" && isAdmin ? (
@@ -3155,6 +3274,16 @@ const styles = {
   bubbleTheirs: { background: COLORS.paper, border: `1px solid ${COLORS.stone}` },
   bubbleAuthor: { fontSize: 10.5, fontFamily: "'Inter', sans-serif", color: COLORS.muted, marginBottom: 2 },
   convReplyRow: { display: "flex", gap: 8 },
+  chatRoomTabs: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+  chatRoomTab: { fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "8px 14px", border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer", borderRadius: 20 },
+  chatRoomTabActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
+  chatRoomBox: { border: `1px solid ${COLORS.hairline}`, borderRadius: 12, background: COLORS.card, padding: 16, display: "flex", flexDirection: "column", gap: 12 },
+  chatFeed: { display: "flex", flexDirection: "column", gap: 12, maxHeight: 440, minHeight: 200, overflowY: "auto", padding: "4px 2px" },
+  chatMsgRow: { display: "flex", gap: 8, alignItems: "flex-start" },
+  chatMsgMeta: { display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 },
+  chatMsgTime: { color: COLORS.muted, fontSize: 11.5 },
+  chatMsgText: { fontSize: 14, lineHeight: 1.5, marginTop: 2, wordBreak: "break-word" },
+  chatMsgDelete: { background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", marginLeft: "auto" },
   addressInsertBtn: { marginTop: 8, background: "none", border: `1px solid ${COLORS.hairline}`, color: COLORS.muted, borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   errorBar: { maxWidth: 700, margin: "20px auto 0", background: "#FCE9E1", border: `1px solid ${COLORS.rust}`, color: COLORS.rust, borderRadius: 6, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 },
   errorClose: { background: "none", border: "none", color: COLORS.rust, fontSize: 18, cursor: "pointer", lineHeight: 1 },
