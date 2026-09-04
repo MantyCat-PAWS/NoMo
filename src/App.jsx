@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   Shirt, Smartphone, Gamepad2, TreePine, Sofa, KeyRound, Wrench, Palette,
   Dumbbell, Baby, PawPrint, BookOpen, Gem, Package, Handshake,
-  Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck, Share2, Search,
+  Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck, Share2, Search, Star,
 } from "lucide-react";
 
 import { supabase } from "./supabaseClient";
@@ -314,6 +314,7 @@ function OfferForm({ item, onSubmit, onCancel, submitting, onSwitchToTrade }) {
           <button type="button" style={styles.smallBtnGhost} onClick={onSwitchToTrade}>Oder lieber direkt tauschen?</button>
         )}
       </div>
+      <p style={styles.buyerProtectionNote}><ShieldCheck size={13} strokeWidth={2} /> Deine {CURRENCY} werden erst ausgezahlt, wenn du den Erhalt bestätigst.</p>
     </div>
   );
 }
@@ -357,7 +358,7 @@ function ReportForm({ item, onSubmit, onCancel, submitting }) {
   );
 }
 
-function TicketCard({ item, isMine, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, offerFormOpen, onToggleOfferForm, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting, isFavorited, onToggleFavorite, favoriteBusy }) {
+function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, offerFormOpen, onToggleOfferForm, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting, isFavorited, onToggleFavorite, favoriteBusy }) {
   const info = catInfo(item.category);
   const total = item.price + (item.shipping_paws || 0);
   const isSuche = item.listing_type === "suche";
@@ -479,6 +480,12 @@ function TicketCard({ item, isMine, alreadyRequested, onDelete, onRequest, reque
             {item.owner_display_name}
           </span>
           {item.owner_verified && <span style={styles.verifiedBadge} title="Ausweis verifiziert">✓</span>}
+          {ownerRatingSummary && ownerRatingSummary.count > 0 && (
+            <span style={styles.ticketOwnerRating}>
+              <Star size={11} strokeWidth={1.5} fill="#F0D57E" color="#F0D57E" />
+              {(ownerRatingSummary.sum / ownerRatingSummary.count).toFixed(1)}
+            </span>
+          )}
         </button>
         <span style={styles.ticketFooterMeta}>
           {item.location} · #{item.code}
@@ -1195,9 +1202,29 @@ function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing,
   );
 }
 
-function PublicProfilePage({ userId, profilesById, listings, onViewListing }) {
+function StarRow({ avg, count, size = 15 }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <span style={{ display: "inline-flex", gap: 1 }}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Star key={n} size={size} strokeWidth={1.5}
+            fill={avg >= n - 0.25 ? "#F0D57E" : "none"}
+            color={avg >= n - 0.25 ? "#F0D57E" : COLORS.hairline} />
+        ))}
+      </span>
+      <span style={{ fontSize: 12.5, color: COLORS.muted, fontFamily: "'Inter', sans-serif" }}>
+        {count > 0 ? `${avg.toFixed(1)} (${count} Bewertung${count === 1 ? "" : "en"})` : "Noch keine Bewertungen"}
+      </span>
+    </span>
+  );
+}
+
+function PublicProfilePage({ userId, profilesById, listings, onViewListing, ratings }) {
   const owner = profilesById[userId];
   const ownerListings = listings.filter((l) => l.owner_id === userId && l.status !== "vergeben");
+  const ownerRatings = (ratings || []).filter((r) => r.rated_id === userId);
+  const avgRating = ownerRatings.length > 0 ? ownerRatings.reduce((sum, r) => sum + r.stars, 0) / ownerRatings.length : 0;
+  const recentReviews = ownerRatings.filter((r) => r.comment && r.comment.trim()).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")).slice(0, 5);
   if (!owner) {
     return (
       <div style={styles.legalPage}>
@@ -1216,7 +1243,11 @@ function PublicProfilePage({ userId, profilesById, listings, onViewListing }) {
             <span style={owner.verified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{owner.display_name}</span>
             {owner.verified && <span style={styles.verifiedBadge} title="Ausweis verifiziert">✓</span>}
           </h1>
-          {owner.motto && <p style={{ ...styles.legalP, marginTop: -8 }}>{owner.motto}</p>}
+          <StarRow avg={avgRating} count={ownerRatings.length} />
+          {owner.created_at && (
+            <p style={styles.memberSinceLine}>Dabei seit {new Date(owner.created_at).toLocaleDateString("de-AT", { month: "long", year: "numeric" })}</p>
+          )}
+          {owner.motto && <p style={{ ...styles.legalP, marginTop: 6, marginBottom: 0 }}>{owner.motto}</p>}
         </div>
       </div>
       {owner.bio && <p style={styles.legalP}>{owner.bio}</p>}
@@ -1225,6 +1256,24 @@ function PublicProfilePage({ userId, profilesById, listings, onViewListing }) {
           <h2 style={styles.profileSectionTitle}>Würde gegen tauschen</h2>
           <div style={styles.wishChipRow}>
             {owner.wishlist.map((w, i) => <span key={i} style={styles.wishChipReadonly}>{w}</span>)}
+          </div>
+        </div>
+      )}
+      {recentReviews.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <h2 style={styles.profileSectionTitle}>Was andere sagen</h2>
+          <div style={styles.reviewList}>
+            {recentReviews.map((r) => (
+              <div key={r.id} style={styles.reviewRow}>
+                <div style={styles.reviewStars}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} size={13} strokeWidth={1.5} fill={n <= r.stars ? "#F0D57E" : "none"} color={n <= r.stars ? "#F0D57E" : COLORS.hairline} />
+                  ))}
+                  {r.item_title && <span style={styles.reviewItemTitle}>zu „{r.item_title}"</span>}
+                </div>
+                <p style={styles.reviewComment}>{r.comment}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -1854,6 +1903,15 @@ export default function App() {
     }
   }, [page, listings]);
   const [ratings, setRatings] = useState([]);
+  const ratingSummaryByUser = useMemo(() => {
+    const map = {};
+    ratings.forEach((r) => {
+      if (!map[r.rated_id]) map[r.rated_id] = { sum: 0, count: 0 };
+      map[r.rated_id].sum += r.stars;
+      map[r.rated_id].count += 1;
+    });
+    return map;
+  }, [ratings]);
   const [tradeOffers, setTradeOffers] = useState([]);
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [listingReports, setListingReports] = useState([]);
@@ -3091,7 +3149,7 @@ export default function App() {
       ) : page === "ueber-uns" ? (
         <UeberUnsPage />
       ) : page.startsWith("user-") ? (
-        <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
+        <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} ratings={ratings} />
       ) : page === "admin" && isAdmin ? (
         <AdminPage
           reportItems={reportItems}
@@ -3502,6 +3560,7 @@ export default function App() {
                     <div className="mc-ticket" key={item.id}>
                       <TicketCard
                         item={item}
+                        ownerRatingSummary={ratingSummaryByUser[item.owner_id]}
                         isMine={session && item.owner_id === session.user.id}
                         alreadyRequested={myOpenRequestItemIds.has(item.id)}
                         onDelete={deleteListing}
@@ -3602,7 +3661,14 @@ const styles = {
   wishChipX: { background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 4px" },
   wishChipReadonly: { display: "inline-block", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 20, padding: "5px 14px", fontSize: 12.5, fontFamily: "'Inter', sans-serif", color: COLORS.ink },
   publicProfileHead: { display: "flex", alignItems: "center", gap: 16, marginBottom: 12 },
+  reviewList: { display: "flex", flexDirection: "column", gap: 10 },
+  reviewRow: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: "10px 14px", background: COLORS.card },
+  reviewStars: { display: "flex", alignItems: "center", gap: 6 },
+  reviewItemTitle: { fontSize: 11.5, color: COLORS.muted, fontFamily: "'Inter', sans-serif" },
+  reviewComment: { fontSize: 13.5, margin: "6px 0 0", lineHeight: 1.5 },
+  ticketOwnerRating: { display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: COLORS.muted, fontFamily: "'Inter', sans-serif" },
   publicProfileAvatar: { width: 64, height: 64, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
+  memberSinceLine: { fontSize: 12, color: COLORS.muted, margin: "4px 0 0" },
   avatarRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   drawPadBox: { display: "flex", flexDirection: "column", alignItems: "flex-start" },
   drawCanvas: { width: 220, height: 220, borderRadius: 12, border: `1.5px solid ${COLORS.stone}`, touchAction: "none", cursor: "crosshair" },
@@ -3659,8 +3725,8 @@ const styles = {
   chatMsgReport: { background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", padding: 0, marginLeft: "auto" },
   chatReportBox: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: 10, marginTop: 8, background: COLORS.paper },
   addressInsertBtn: { marginTop: 8, background: "none", border: `1px solid ${COLORS.hairline}`, color: COLORS.muted, borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  errorBar: { maxWidth: 700, margin: "20px auto 0", background: "#FCE9E1", border: `1px solid ${COLORS.rust}`, color: COLORS.rust, borderRadius: 6, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 },
-  errorClose: { background: "none", border: "none", color: COLORS.rust, fontSize: 18, cursor: "pointer", lineHeight: 1 },
+  errorBar: { maxWidth: 700, margin: "20px auto 0", background: "rgba(224,91,76,0.12)", border: `1px solid ${COLORS.rust}`, color: "#FF9484", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 },
+  errorClose: { background: "none", border: "none", color: "#FF9484", fontSize: 18, cursor: "pointer", lineHeight: 1 },
   adminBox: { maxWidth: 700, margin: "24px auto 0", background: "#FCE9E1", border: `2px solid ${COLORS.rust}`, borderRadius: 8, padding: "16px 18px" },
   adminTitle: { fontFamily: "'Inter', sans-serif", fontSize: 18, margin: "0 0 10px", color: COLORS.rust },
   adminUserRow: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: "10px 12px", marginBottom: 8 },
@@ -3703,6 +3769,7 @@ const styles = {
   formRow: { display: "flex", gap: 14, flexWrap: "wrap" },
   label: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 500, flex: 1, minWidth: 180 },
   checkboxRow: { display: "flex", flexDirection: "row", alignItems: "center", gap: 6, fontWeight: 400, fontSize: 12.5, marginTop: 2, cursor: "pointer" },
+  buyerProtectionNote: { display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: COLORS.muted, marginTop: 8, marginBottom: 0 },
   input: { fontFamily: "'Inter', sans-serif", fontSize: 14, padding: "10px 12px", border: `1.5px solid ${COLORS.stone}`, borderRadius: 6, background: COLORS.paper, color: COLORS.ink, boxShadow: "inset 0 1px 3px rgba(0,0,0,0.25)" },
   hobbyHint: { fontSize: 12.5, background: COLORS.paper, border: `1px dashed ${COLORS.moss}`, borderRadius: 6, padding: "10px 12px", color: COLORS.muted },
   imagePreviewRow: { display: "flex", gap: 8, flexWrap: "wrap" },
