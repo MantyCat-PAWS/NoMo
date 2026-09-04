@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   Shirt, Smartphone, Gamepad2, TreePine, Sofa, KeyRound, Wrench, Palette,
   Dumbbell, Baby, PawPrint, BookOpen, Gem, Package, Handshake,
-  Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck, Share2,
+  Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck, Share2, Search,
 } from "lucide-react";
 
 import { supabase } from "./supabaseClient";
@@ -372,7 +372,7 @@ function TicketCard({ item, isMine, alreadyRequested, onDelete, onRequest, reque
           {isFavorited ? "♥" : "♡"}
         </button>
       )}
-      {gallery.length > 0 && (
+      {gallery.length > 0 ? (
         <div>
           <img src={gallery[Math.min(activeImg, gallery.length - 1)]} alt={item.title} style={styles.ticketImage} />
           {gallery.length > 1 && (
@@ -383,6 +383,10 @@ function TicketCard({ item, isMine, alreadyRequested, onDelete, onRequest, reque
               ))}
             </div>
           )}
+        </div>
+      ) : (
+        <div style={styles.ticketImagePlaceholder}>
+          <CatIcon id={item.category} size={36} style={{ color: COLORS.hairline }} />
         </div>
       )}
       <div style={styles.badgeRow}>
@@ -3223,7 +3227,10 @@ export default function App() {
           )}
         </div>
 
-        <input className="mc-input" style={styles.searchInput} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen, z. B. Bohrmaschine, Nachhilfe, Aquarium…" />
+        <div style={styles.searchWrap}>
+          <Search size={18} strokeWidth={2} style={styles.searchIcon} />
+          <input className="mc-input" style={{ ...styles.searchInput, paddingLeft: 44 }} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen, z. B. Bohrmaschine, Nachhilfe, Aquarium…" />
+        </div>
 
         {recentSearches.length > 0 && !query && (
           <div style={styles.recentSearchRow}>
@@ -3680,7 +3687,9 @@ const styles = {
   sidebarTabActive: { background: COLORS.ink, color: COLORS.paper, fontWeight: 600 },
   boardMain: { flex: 1, minWidth: 0 },
   boardTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 30, fontWeight: 700, margin: 0, color: COLORS.lime, letterSpacing: "-0.01em" },
-  searchInput: { width: "100%", fontFamily: "'Inter', sans-serif", fontSize: 15, padding: "12px 14px", border: `1px solid ${COLORS.hairline}`, borderRadius: 6, background: COLORS.card, marginBottom: 20, color: COLORS.ink },
+  searchInput: { width: "100%", fontFamily: "'Inter', sans-serif", fontSize: 16, padding: "16px 18px", border: `1.5px solid ${COLORS.hairline}`, borderRadius: 10, background: COLORS.card, marginBottom: 20, color: COLORS.ink, boxShadow: "inset 0 1px 3px rgba(0,0,0,0.2), 0 4px 14px rgba(0,0,0,0.18)" },
+  searchWrap: { position: "relative" },
+  searchIcon: { position: "absolute", left: 16, top: 18, color: COLORS.muted, pointerEvents: "none" },
   recentSearchRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: -12, marginBottom: 16 },
   recentSearchLabel: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted },
   recentSearchChip: { fontFamily: "'Inter', sans-serif", fontSize: 11.5, background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 20, padding: "3px 10px", cursor: "pointer", color: COLORS.muted },
@@ -3714,7 +3723,8 @@ const styles = {
   skeletonLineNarrow: { width: "50%", height: 12, borderRadius: 4 },
   skeletonPill: { width: 70, height: 22, borderRadius: 12, marginTop: 6 },
   ticket: { position: "relative", display: "flex", flexDirection: "column", background: `linear-gradient(175deg, #26292a 0%, ${COLORS.card} 40%)`, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, overflow: "visible", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.2), 0 10px 24px rgba(0,0,0,0.22)", height: "100%", padding: "26px 20px 18px" },
-  ticketImage: { width: "100%", height: 160, objectFit: "cover", borderRadius: 8, marginBottom: 12 },
+  ticketImage: { width: "100%", height: 172, objectFit: "cover", borderRadius: 8, marginBottom: 12, display: "block" },
+  ticketImagePlaceholder: { width: "100%", height: 172, borderRadius: 8, marginBottom: 12, background: COLORS.paper, border: `1px dashed ${COLORS.hairline}`, display: "flex", alignItems: "center", justifyContent: "center" },
   pinShadow: { position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 14, height: 5, borderRadius: "50%", background: "rgba(0,0,0,0.28)", filter: "blur(2px)" },
   pin: { position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 11, height: 11, borderRadius: "50%", background: "linear-gradient(145deg, #EAECE9, #9AA39C)", border: "1px solid rgba(0,0,0,0.15)", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" },
   favoriteBtn: { position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.35)", border: `1px solid ${COLORS.hairline}`, borderRadius: "50%", width: 30, height: 30, fontSize: 16, color: COLORS.rust, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
@@ -3753,11 +3763,11 @@ const styles = {
   shipBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.moss, background: "#EEF1EA", padding: "4px 9px", borderRadius: 20 },
   pickupBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.muted, background: COLORS.paper, padding: "4px 9px", borderRadius: 20 },
   reportLink: { marginTop: 10, alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted, textDecoration: "underline", cursor: "pointer" },
-  ticketTitle: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 19, margin: "0 0 8px", lineHeight: 1.2 },
-  ticketDesc: { fontSize: 13.5, lineHeight: 1.5, margin: "0 0 10px", color: COLORS.ink },
+  ticketTitle: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 19, margin: "0 0 8px", lineHeight: 1.2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
+  ticketDesc: { fontSize: 13.5, lineHeight: 1.5, margin: "0 0 10px", color: COLORS.ink, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
   metaLine: { fontSize: 12, color: COLORS.muted, marginBottom: 8, fontFamily: "'Inter', sans-serif" },
   priceRow: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4 },
-  priceValue: { fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 20, color: COLORS.moss },
+  priceValue: { fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: 22, color: COLORS.lime },
   priceLabel: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.muted },
   shippingLine: { fontSize: 11.5, color: COLORS.ink, marginBottom: 10, fontFamily: "'Inter', sans-serif" },
   deleteLink: { marginTop: "auto", background: "none", border: "none", padding: 0, fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: COLORS.rust, textDecoration: "underline", cursor: "pointer", alignSelf: "flex-start" },
