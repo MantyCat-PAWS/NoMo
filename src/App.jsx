@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   Shirt, Smartphone, Gamepad2, TreePine, Sofa, KeyRound, Wrench, Palette,
   Dumbbell, Baby, PawPrint, BookOpen, Gem, Package, Handshake,
-  Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck,
+  Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck, Share2,
 } from "lucide-react";
 
 import { supabase } from "./supabaseClient";
@@ -476,7 +476,17 @@ function TicketCard({ item, isMine, alreadyRequested, onDelete, onRequest, reque
           </span>
           {item.owner_verified && <span style={styles.verifiedBadge} title="Ausweis verifiziert">✓</span>}
         </button>
-        <span style={styles.ticketFooterMeta}>{item.location} · #{item.code}</span>
+        <span style={styles.ticketFooterMeta}>
+          {item.location} · #{item.code}
+          <button type="button" style={styles.shareBtn} title="Link zu diesem Zettel kopieren"
+            onClick={() => {
+              const link = `${window.location.origin}/#zettel-${item.id}`;
+              if (navigator.share) { navigator.share({ title: item.title, url: link }).catch(() => {}); }
+              else { navigator.clipboard?.writeText(link); }
+            }}>
+            <Share2 size={13} strokeWidth={2} />
+          </button>
+        </span>
       </div>
     </div>
   );
@@ -1658,6 +1668,36 @@ function ChatPage({ session, isAdmin, profilesById, onReportMessage }) {
   );
 }
 
+function UeberUnsPage() {
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+      <h1 style={styles.legalTitle}>Über uns</h1>
+      <p style={styles.legalP}>
+        NoCashClub ist ein kleines Herzensprojekt von Centerpiece OG aus Traun. Uns ist aufgefallen, wie viele gute Sachen
+        ungenutzt in Schränken und Garagen liegen — und wie oft man selbst etwas sucht, wofür man eigentlich kein Geld
+        ausgeben möchte oder muss. Also haben wir uns gedacht: Warum nicht einfach direkt tauschen?
+      </p>
+      <p style={styles.legalP}>
+        Die Idee ist bewusst einfach gehalten: kein Kleingedrucktes, kein Verkaufsdruck, keine Gebühren. Nur ein
+        Schwarzes Brett für die Nachbarschaft (und alle, die mitmachen wollen) — plus ein bisschen Community drumherum,
+        damit man sich auch dann austauschen kann, wenn gerade kein passender Zettel dabei ist.
+      </p>
+      <p style={styles.legalP}>
+        Wir stehen noch ganz am Anfang und bauen NoCashClub Stück für Stück weiter aus — Ideen, Feedback und Zettel
+        sind jederzeit willkommen.
+      </p>
+      <p style={styles.legalP}>
+        Fragen, Anregungen oder einfach Hallo sagen? Über die <a href="#faq" style={styles.footerLink}>FAQ-Seite</a> erreichst
+        du uns direkt.
+      </p>
+      <p style={{ ...styles.legalP, color: COLORS.muted, fontSize: 12.5 }}>
+        Centerpiece OG · Bahnhofstraße 10, 4050 Traun
+      </p>
+    </div>
+  );
+}
+
 function FaqPage({ session, onSendQuestion, sendingQuestion }) {
   return (
     <div style={styles.legalPage}>
@@ -1802,6 +1842,13 @@ export default function App() {
   const [authBusy, setAuthBusy] = useState(false);
 
   const [listings, setListings] = useState([]);
+  useEffect(() => {
+    if (page.startsWith("zettel-") && listings.length > 0) {
+      const id = page.slice(7);
+      const item = listings.find((l) => l.id === id);
+      if (item) { viewListingOnBoard(item); } else { window.location.hash = ""; }
+    }
+  }, [page, listings]);
   const [ratings, setRatings] = useState([]);
   const [tradeOffers, setTradeOffers] = useState([]);
   const [purchaseRequests, setPurchaseRequests] = useState([]);
@@ -3037,6 +3084,8 @@ export default function App() {
         <FaqPage session={session} onSendQuestion={sendQuestionToAdmin} sendingQuestion={sendingQuestion} />
       ) : page === "chat" ? (
         <ChatPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportMessage={submitChatReport} />
+      ) : page === "ueber-uns" ? (
+        <UeberUnsPage />
       ) : page.startsWith("user-") ? (
         <PublicProfilePage userId={page.slice(5)} profilesById={profilesById} listings={listings} onViewListing={viewListingOnBoard} />
       ) : page === "admin" && isAdmin ? (
@@ -3487,6 +3536,7 @@ export default function App() {
       <footer style={styles.footer}>
         <div>NoCashClub, ein Tauschbrett aus Traun. {CURRENCY} sind eine reine Verrechnungswährung ohne echten Geldwert.</div>
         <div style={styles.footerLinks}>
+          <a href="#ueber-uns" style={styles.footerLink}>Über uns</a>
           <a href="#faq" style={styles.footerLink}>Häufige Fragen</a>
           <a href="#impressum" style={styles.footerLink}>Impressum</a>
           <a href="#agb" style={styles.footerLink}>AGB</a>
@@ -3680,7 +3730,8 @@ const styles = {
   verifyPending: { fontSize: 13, color: COLORS.muted, fontStyle: "italic" },
   verifyRejected: { fontSize: 13, color: COLORS.rust, marginBottom: 10 },
   verifyThumbLarge: { maxWidth: "100%", width: 420, borderRadius: 8, border: `1px solid ${COLORS.hairline}`, display: "block", marginTop: 10, marginBottom: 4 },
-  ticketFooterMeta: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted },
+  ticketFooterMeta: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted, display: "inline-flex", alignItems: "center", gap: 6 },
+  shareBtn: { background: "none", border: "none", color: COLORS.muted, cursor: "pointer", padding: 0, display: "inline-flex" },
   badgeRow: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
   catBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.muted, background: COLORS.paper, padding: "4px 9px", borderRadius: 20 },
   grayIcon: { filter: "grayscale(1) contrast(0.85) brightness(1.15)", opacity: 0.85 },
