@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  Shirt, Smartphone, Gamepad2, TreePine, Sofa, KeyRound, Wrench, Palette,
+  Dumbbell, Baby, PawPrint, BookOpen, Gem, Package, Handshake,
+  Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck,
+} from "lucide-react";
 
 import { supabase } from "./supabaseClient";
 
@@ -128,6 +133,28 @@ const CHAT_ROOMS = [
   { id: "garten_pflanzen", label: "Garten & Pflanzen", emoji: "🌱" },
   { id: "sonstiges", label: "Sonstiges", emoji: "💬" },
 ];
+const CAT_ICON_MAP = {
+  mode_beauty: Shirt,
+  elektronik: Smartphone,
+  multimedia_gaming: Gamepad2,
+  haus_garten: TreePine,
+  moebel: Sofa,
+  wohnen: KeyRound,
+  werkzeug_bau: Wrench,
+  freizeit_hobby: Palette,
+  sport: Dumbbell,
+  kind_baby: Baby,
+  tiere: PawPrint,
+  musik_buecher: BookOpen,
+  sammeln: Gem,
+  sonstiges: Package,
+  dienstleistung: Handshake,
+};
+function CatIcon({ id, size = 15, style }) {
+  const Icon = CAT_ICON_MAP[id];
+  if (!Icon) return null;
+  return <Icon size={size} strokeWidth={1.8} style={{ verticalAlign: "-3px", ...style }} />;
+}
 const CATS = [
   { id: "mode_beauty", label: "Mode & Beauty", icon: "👗", physical: true },
   { id: "elektronik", label: "Elektronik & Technik", icon: "📱", physical: true },
@@ -359,7 +386,7 @@ function TicketCard({ item, isMine, alreadyRequested, onDelete, onRequest, reque
         </div>
       )}
       <div style={styles.badgeRow}>
-        <span style={styles.catBadge}><span style={styles.grayIcon}>{info.icon}</span> {info.label}</span>
+        <span style={styles.catBadge}><CatIcon id={item.category} style={{ color: COLORS.lime }} /> {info.label}</span>
         {info.physical && (
           <span style={item.ships === false ? styles.pickupBadge : styles.shipBadge}>
             {item.ships === false ? "Nur Abholung" : "Versand möglich"}
@@ -2935,6 +2962,13 @@ export default function App() {
         ::selection { background: ${COLORS.lime}; color: ${COLORS.ink}; }
         .mc-btn { transition: transform .15s ease, box-shadow .15s ease; }
         .mc-btn:hover { transform: translateY(-2px); }
+        .mc-shimmer { position: relative; overflow: hidden; background: ${COLORS.stone}; }
+        .mc-shimmer::after {
+          content: ""; position: absolute; inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+          animation: mc-shimmer-move 1.6s infinite;
+        }
+        @keyframes mc-shimmer-move { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
         .mc-btn:focus-visible, .mc-input:focus-visible, .mc-tab:focus-visible { outline: 3px solid ${COLORS.lime}; outline-offset: 2px; }
         .mc-ticket { transition: transform .2s ease, box-shadow .2s ease; }
         .mc-ticket:hover { transform: translateY(-3px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 8px rgba(0,0,0,0.25), 0 20px 40px rgba(0,0,0,0.32); }
@@ -3035,6 +3069,29 @@ export default function App() {
         <h1 className="mc-hero-title" style={styles.heroTitle}>No Cash.<br />No Problem.</h1>
         <p style={styles.heroSub}>Tausche deinen Kram direkt oder gegen {CURRENCY}.<br />Kein Geld – Kein Drama – Eat the Rich.</p>
         <a href="#angebote" className="mc-btn" style={styles.heroCta}>Zettel durchstöbern ↓</a>
+        <div style={styles.trustRow}>
+          <span style={styles.trustBadge}><Gift size={14} strokeWidth={2} /> Komplett kostenlos</span>
+          <span style={styles.trustBadge}><CheckCircle2 size={14} strokeWidth={2} /> Ausweis-verifizierte Mitglieder</span>
+          <span style={styles.trustBadge}><ShieldCheck size={14} strokeWidth={2} /> Käuferschutz mit Treuhand</span>
+        </div>
+      </section>
+
+      <section style={styles.howBox}>
+        <div style={styles.howStep}>
+          <div style={styles.howIconCircle}><Tags size={26} strokeWidth={1.8} color={COLORS.lime} /></div>
+          <h3 style={styles.howStepTitle}>1. Zettel aufhängen</h3>
+          <p style={styles.howStepText}>Zeig, was du anzubieten hast oder wonach du suchst — dauert nur eine Minute.</p>
+        </div>
+        <div style={styles.howStep}>
+          <div style={styles.howIconCircle}><ArrowLeftRight size={26} strokeWidth={1.8} color={COLORS.lime} /></div>
+          <h3 style={styles.howStepTitle}>2. Tauschen oder anfragen</h3>
+          <p style={styles.howStepText}>Direkt 1:1 tauschen oder mit {CURRENCY} anfragen — deine {CURRENCY} liegen bis zur Bestätigung sicher in Verwahrung.</p>
+        </div>
+        <div style={styles.howStep}>
+          <div style={styles.howIconCircle}><Handshake size={26} strokeWidth={1.8} color={COLORS.lime} /></div>
+          <h3 style={styles.howStepTitle}>3. Übergeben & freuen</h3>
+          <p style={styles.howStepText}>Abholen oder verschicken, Erhalt bestätigen, fertig. Kein Geld hat den Besitzer gewechselt.</p>
+        </div>
       </section>
 
       {SHOW_AD_BANNER && (
@@ -3160,7 +3217,7 @@ export default function App() {
               <div style={styles.filterLabel}>Kategorie</div>
               <div style={styles.sidebarTabsCol}>
                 {["alle", ...CATS.map((c) => c.id)].map((f) => (
-                  <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.sidebarTab, ...(catFilter === f ? styles.sidebarTabActive : {}) }}>{f === "alle" ? "Alle" : <><span style={styles.grayIcon}>{catInfo(f).icon}</span> {catInfo(f).label}</>}</button>
+                  <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.sidebarTab, ...(catFilter === f ? styles.sidebarTabActive : {}) }}>{f === "alle" ? "Alle" : <><CatIcon id={f} /> {catInfo(f).label}</>}</button>
                 ))}
               </div>
             </div>
@@ -3350,9 +3407,36 @@ export default function App() {
         )}
 
             {loading ? (
-              <div style={styles.empty}>Zettel werden geladen…</div>
+              <div className="mc-grid">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} style={styles.skeletonTicket}>
+                    <div className="mc-shimmer" style={styles.skeletonImg} />
+                    <div className="mc-shimmer" style={styles.skeletonLineWide} />
+                    <div className="mc-shimmer" style={styles.skeletonLineNarrow} />
+                    <div className="mc-shimmer" style={styles.skeletonPill} />
+                  </div>
+                ))}
+              </div>
             ) : visible.length === 0 ? (
-              <div style={styles.empty}>{listings.length === 0 ? "Noch nichts hier. Häng den ersten Zettel auf." : "Nichts gefunden. Anderen Suchbegriff oder Filter probieren."}</div>
+              <div style={styles.emptyStateBox}>
+                <div style={styles.emptyStateIcon}><Tags size={30} strokeWidth={1.6} color={COLORS.lime} /></div>
+                {listings.length === 0 ? (
+                  <>
+                    <h3 style={styles.emptyStateTitle}>Hier ist noch Platz für deinen Zettel</h3>
+                    <p style={styles.emptyStateText}>Sei die erste Person, die hier etwas anbietet oder sucht.</p>
+                    {session ? (
+                      <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { setShowForm(true); document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }); }}>+ Ersten Zettel aufhängen</button>
+                    ) : (
+                      <p style={styles.emptyStateText}>Melde dich an, um loszulegen.</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <h3 style={styles.emptyStateTitle}>Nichts gefunden</h3>
+                    <p style={styles.emptyStateText}>Probier einen anderen Suchbegriff oder Filter.</p>
+                  </>
+                )}
+              </div>
             ) : (
               <div className="mc-grid">
                 {visible.map((item) => {
@@ -3435,6 +3519,13 @@ const styles = {
   heroSub: { maxWidth: 480, margin: "0 auto 14px", fontSize: 17, lineHeight: 1.55, color: "rgba(255,255,255,0.85)" },
   heroSubSmall: { maxWidth: 480, margin: "0 auto 28px", fontSize: 13.5, lineHeight: 1.5, color: COLORS.stone, opacity: 0.9 },
   heroCta: { display: "inline-block", background: COLORS.lime, color: "#fff", fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14.5, padding: "15px 30px", borderRadius: 999, textDecoration: "none", boxShadow: "0 1px 2px rgba(0,0,0,0.15), 0 10px 24px rgba(0,0,0,0.25)", cursor: "pointer", letterSpacing: "0.01em" },
+  trustRow: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 26, position: "relative" },
+  trustBadge: { display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 999, padding: "6px 14px", fontFamily: "'Inter', sans-serif", fontSize: 12.5, fontWeight: 500, color: "#fff" },
+  howBox: { maxWidth: 980, margin: "0 auto", padding: "48px 28px 8px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 28 },
+  howStep: { textAlign: "center" },
+  howIconCircle: { width: 56, height: 56, borderRadius: "50%", background: COLORS.card, border: `1.5px solid ${COLORS.hairline}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" },
+  howStepTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 17, fontWeight: 700, margin: "0 0 6px" },
+  howStepText: { fontSize: 13.5, color: COLORS.muted, lineHeight: 1.5, margin: 0, maxWidth: 260, marginLeft: "auto", marginRight: "auto" },
   authBox: { maxWidth: 440, margin: "8px auto 0", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "24px 26px 26px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", position: "relative", zIndex: 2 },
   lightboxOverlayFallback: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 24 },
   resetPasswordBox: { background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "28px 26px", maxWidth: 400, width: "100%" },
@@ -3563,6 +3654,15 @@ const styles = {
   primaryBtn: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14, background: `linear-gradient(180deg, #ffffff 0%, ${COLORS.ink} 100%)`, color: COLORS.paper, border: "none", borderRadius: 8, padding: "11px 20px", cursor: "pointer", alignSelf: "flex-start", boxShadow: "0 1px 2px rgba(0,0,0,0.2), 0 6px 16px rgba(0,0,0,0.28)" },
   smallBtn: { marginTop: 8, fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 12.5, background: COLORS.ink, color: COLORS.paper, border: "none", borderRadius: 6, padding: "8px 15px", cursor: "pointer" },
   empty: { padding: "40px 20px", textAlign: "center", border: `1.5px dashed ${COLORS.stone}`, borderRadius: 8, color: COLORS.muted, fontFamily: "'Inter', sans-serif", fontSize: 14 },
+  emptyStateBox: { padding: "56px 24px", textAlign: "center", border: `1.5px dashed ${COLORS.stone}`, borderRadius: 12, gridColumn: "1 / -1" },
+  emptyStateIcon: { width: 64, height: 64, borderRadius: "50%", background: COLORS.card, border: `1.5px solid ${COLORS.hairline}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" },
+  emptyStateTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 19, fontWeight: 700, margin: "0 0 8px" },
+  emptyStateText: { fontSize: 13.5, color: COLORS.muted, margin: "0 0 16px" },
+  skeletonTicket: { display: "flex", flexDirection: "column", gap: 10, background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "26px 20px 20px" },
+  skeletonImg: { width: "100%", height: 120, borderRadius: 8 },
+  skeletonLineWide: { width: "80%", height: 14, borderRadius: 4 },
+  skeletonLineNarrow: { width: "50%", height: 12, borderRadius: 4 },
+  skeletonPill: { width: 70, height: 22, borderRadius: 12, marginTop: 6 },
   ticket: { position: "relative", display: "flex", flexDirection: "column", background: `linear-gradient(175deg, #26292a 0%, ${COLORS.card} 40%)`, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, overflow: "visible", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.2), 0 10px 24px rgba(0,0,0,0.22)", height: "100%", padding: "26px 20px 18px" },
   ticketImage: { width: "100%", height: 160, objectFit: "cover", borderRadius: 8, marginBottom: 12 },
   pinShadow: { position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 14, height: 5, borderRadius: "50%", background: "rgba(0,0,0,0.28)", filter: "blur(2px)" },
