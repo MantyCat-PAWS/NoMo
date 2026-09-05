@@ -2369,15 +2369,22 @@ export default function App() {
     setAuthError(null);
     setAuthInfo(null);
     const { email, password, displayName } = authForm;
-    if (!email.trim() || !password || !displayName.trim()) { setAuthError("Bitte alle Felder ausfüllen."); return; }
+    const trimmedName = displayName.trim();
+    if (!email.trim() || !password || !trimmedName) { setAuthError("Bitte alle Felder ausfüllen."); return; }
     setAuthBusy(true);
     try {
+      const { data: existing } = await supabase.from("profiles").select("id").ilike("display_name", trimmedName).limit(1);
+      if (existing && existing.length > 0) {
+        setAuthError(`Der Name "${trimmedName}" ist schon vergeben. Probier z. B. "${trimmedName} ${trimmedName[0]}." oder häng eine Zahl an.`);
+        setAuthBusy(false);
+        return;
+      }
       let referralCode = null;
       try { referralCode = localStorage.getItem("nocashclub_referral_code"); } catch (e) {}
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { data: { display_name: displayName.trim(), ...(referralCode ? { referral_code: referralCode } : {}) } },
+        options: { data: { display_name: trimmedName, ...(referralCode ? { referral_code: referralCode } : {}) } },
       });
       if (signUpError) { setAuthError(signUpError.message); setAuthBusy(false); return; }
       try { localStorage.removeItem("nocashclub_referral_code"); } catch (e) {}
@@ -2386,7 +2393,11 @@ export default function App() {
       }
       await fetchAll();
     } catch (e) {
-      setAuthError("Registrierung fehlgeschlagen. Bitte nochmal versuchen.");
+      if (String(e?.message || "").includes("profiles_display_name_lower_idx")) {
+        setAuthError(`Der Name "${trimmedName}" wurde gerade eben vergeben. Bitte einen anderen wählen.`);
+      } else {
+        setAuthError("Registrierung fehlgeschlagen. Bitte nochmal versuchen.");
+      }
     } finally { setAuthBusy(false); }
   }
 
