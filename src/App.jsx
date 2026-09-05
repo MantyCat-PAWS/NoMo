@@ -125,6 +125,13 @@ const AT_DISTRICTS = {
   wien: ["Wien"],
 };
 
+const CONDITIONS = [
+  { id: "neu", label: "Neu" },
+  { id: "wie_neu", label: "Wie neu" },
+  { id: "gebraucht", label: "Gebraucht" },
+  { id: "beschaedigt", label: "Beschädigt" },
+];
+const CONDITION_LABEL = Object.fromEntries(CONDITIONS.map((c) => [c.id, c.label]));
 const CHAT_ROOMS = [
   { id: "basteln", label: "Basteln", emoji: "🎨" },
   { id: "stricken", label: "Stricken & Häkeln", emoji: "🧶" },
@@ -400,6 +407,9 @@ function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDele
           </span>
         )}
         {isSuche && <span style={styles.searchBadge}>GESUCHT</span>}
+        {item.condition && (
+          <span style={item.condition === "beschaedigt" ? styles.conditionBadgeWarn : styles.conditionBadge}>{CONDITION_LABEL[item.condition]}</span>
+        )}
         {item.seller_type === "unternehmer" && <span style={styles.bizBadge}>Unternehmer:in</span>}
         {item.status === "vergeben" && <span style={styles.soldBadge}>VERGEBEN</span>}
       </div>
@@ -2030,7 +2040,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+  const [form, setForm] = useState({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true, condition: "" });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [editingListingId, setEditingListingId] = useState(null);
@@ -2583,7 +2593,7 @@ export default function App() {
       if (editingListingId) {
         const { error: updErr } = await supabase.from("listings").update({
           title: form.title.trim(), category: form.category, description: form.description.trim(),
-          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region, district: form.district || null,
+          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region, district: form.district || null, condition: form.condition || null,
           image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
           listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
         }).eq("id", editingListingId);
@@ -2592,14 +2602,14 @@ export default function App() {
         const code = String(listings.length + 1).padStart(4, "0");
         const { error: insErr } = await supabase.from("listings").insert({
           code, title: form.title.trim(), category: form.category, description: form.description.trim(),
-          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region, district: form.district || null,
+          price, shipping_paws: shippingPaws, location: form.location.trim() || "Traun", region: form.region, district: form.district || null, condition: form.condition || null,
           owner_id: session.user.id, status: "verfuegbar", image_url: imageUrls[0] || null, image_urls: imageUrls, seller_type: form.sellerType,
           listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
         });
         if (insErr) throw insErr;
       }
 
-      setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+      setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true, condition: "" });
       setImageFiles([]);
       setImagePreviews([]);
       setExistingImageUrls([]);
@@ -2622,6 +2632,7 @@ export default function App() {
       location: listing.location || "Traun",
       region: listing.region || "oberoesterreich",
       district: listing.district || "",
+      condition: listing.condition || "",
       sellerType: listing.seller_type || "privat",
       listingType: listing.listing_type || "biete",
       maxOfferPaws: listing.max_offer_paws != null ? String(listing.max_offer_paws) : "",
@@ -2645,7 +2656,7 @@ export default function App() {
     setExistingImageUrls([]);
     setImageFiles([]);
     setImagePreviews([]);
-    setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true });
+    setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true, condition: "" });
   }
 
 
@@ -3585,6 +3596,15 @@ export default function App() {
                 {imagePreviews.map((src, i) => <img key={`new-${i}`} src={src} alt="Vorschau" style={styles.imagePreviewThumb} />)}
               </div>
             )}
+            {catInfo(form.category).physical && form.listingType === "biete" && (
+              <label style={styles.label}>
+                Zustand
+                <select className="mc-input" style={styles.input} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
+                  <option value="">Keine Angabe</option>
+                  {CONDITIONS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+              </label>
+            )}
             <div style={styles.formRow}>
               <label style={styles.label}>
                 Standort
@@ -3708,24 +3728,26 @@ export default function App() {
 
       <nav className="mc-bottom-nav" style={styles.bottomNav}>
         <button type="button" style={{ ...styles.bottomNavItem, ...(page === "" ? styles.bottomNavItemActive : {}) }}
-          onClick={() => { window.location.hash = ""; window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+          onClick={() => { setPage(""); window.location.hash = ""; window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <Home size={22} strokeWidth={page === "" ? 2.3 : 1.8} />
           <span style={styles.bottomNavLabel}>Start</span>
         </button>
         <button type="button" style={styles.bottomNavItem}
           onClick={() => {
+            setPage("");
             window.location.hash = "";
-            setTimeout(() => document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }), 60);
+            setTimeout(() => document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }), 80);
           }}>
           <Search size={22} strokeWidth={1.8} />
           <span style={styles.bottomNavLabel}>Suchen</span>
         </button>
         <button type="button" style={styles.bottomNavItemCta}
           onClick={() => {
-            if (!session) { window.location.hash = ""; window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+            setPage("");
             window.location.hash = "";
+            if (!session) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
             setShowForm(true);
-            setTimeout(() => document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }), 60);
+            setTimeout(() => document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }), 80);
           }}>
           <PlusCircle size={30} strokeWidth={1.8} />
         </button>
@@ -3972,6 +3994,8 @@ const styles = {
   catBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.muted, background: COLORS.paper, padding: "4px 9px", borderRadius: 20 },
   grayIcon: { filter: "grayscale(1) contrast(0.85) brightness(1.15)", opacity: 0.85 },
   searchBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 10.5, letterSpacing: "0.03em", color: "#fff", background: COLORS.rust, padding: "4px 9px", borderRadius: 20 },
+  conditionBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, color: COLORS.lime, background: "rgba(46,204,113,0.12)", border: `1px solid ${COLORS.lime}`, padding: "3px 9px", borderRadius: 20 },
+  conditionBadgeWarn: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, color: "#fff", background: COLORS.rust, padding: "4px 9px", borderRadius: 20 },
   typeToggleRow: { display: "flex", gap: 8, marginBottom: 4 },
   typeToggleBtn: { flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "10px 12px", border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer", borderRadius: 5 },
   typeToggleBtnActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
