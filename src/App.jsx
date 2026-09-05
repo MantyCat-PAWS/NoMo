@@ -3805,7 +3805,7 @@ const styles = {
   tradePill: { background: COLORS.moss, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
   msgPillBtn: { background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   logoutLink: { background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.lime },
-  hero: { background: `radial-gradient(ellipse 700px 380px at 50% -8%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 60%), linear-gradient(160deg, ${COLORS.moss} 0%, ${COLORS.mossDark} 100%)`, color: "#fff", padding: "88px 28px 64px", textAlign: "center", position: "relative", overflow: "hidden" },
+  hero: { background: `linear-gradient(to top, rgba(6,10,7,0.90) 0%, rgba(6,14,8,0.82) 50%, rgba(6,14,8,0.72) 100%), url("/hero-moss.jpg") center 35%/cover no-repeat`, color: "#fff", padding: "88px 28px 64px", textAlign: "center", position: "relative", overflow: "hidden" },
   heroEyebrow: { fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: "0.18em", color: COLORS.lime, marginBottom: 18 },
   heroTitle: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 54, lineHeight: 1.1, margin: "0 0 20px", letterSpacing: "-0.02em", color: "#fff" },
   heroSub: { maxWidth: 480, margin: "0 auto 14px", fontSize: 17, lineHeight: 1.55, color: "rgba(255,255,255,0.85)" },
