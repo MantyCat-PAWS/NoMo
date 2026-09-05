@@ -3,6 +3,7 @@ import {
   Shirt, Smartphone, Gamepad2, TreePine, Sofa, KeyRound, Wrench, Palette,
   Dumbbell, Baby, PawPrint, BookOpen, Gem, Package, Handshake,
   Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck, Share2, Search, Star,
+  Home, PlusCircle, MessageCircle, User, Pencil, Bell, MapPin, UserPlus, ChevronRight, ListChecks,
 } from "lucide-react";
 
 import { supabase } from "./supabaseClient";
@@ -503,20 +504,20 @@ function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDele
   );
 }
 
-function VerificationSection({ profile, onSubmit, uploading }) {
+function VerificationSection({ profile, onSubmit, uploading, hideTitle }) {
   const [file, setFile] = useState(null);
   const status = profile.verification_status;
   if (profile.verified) {
     return (
       <div style={styles.verifyBox}>
-        <h2 style={styles.profileSectionTitle}>Verifizierung</h2>
+        {!hideTitle && <h2 style={styles.profileSectionTitle}>Verifizierung</h2>}
         <p style={styles.legalP}>✓ Dein Konto ist mit Ausweis verifiziert. Danke fürs Vertrauen schaffen!</p>
       </div>
     );
   }
   return (
     <div style={styles.verifyBox}>
-      <h2 style={styles.profileSectionTitle}>Verifizierung</h2>
+      {!hideTitle && <h2 style={styles.profileSectionTitle}>Verifizierung</h2>}
       <p style={styles.legalP}>
         Lade ein Foto deines Ausweises hoch (Vorderseite reicht), um dein Konto zu verifizieren. Das Bild sehen nur du und die Admin, es wird nach der Prüfung automatisch gelöscht, nur der Verifiziert-Status bleibt. Als Dankeschön gibt's 5 {CURRENCY}.
       </p>
@@ -703,30 +704,41 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
   if (selected) {
     return (
       <div style={styles.convBox}>
-        <button type="button" style={styles.legalBack} onClick={() => setSelectedKey(null)}>← Zurück zur Übersicht</button>
         <div style={styles.convHeadRow}>
+          <button type="button" style={styles.convBackBtn} onClick={() => setSelectedKey(null)} aria-label="Zurück">←</button>
           <a href={`#user-${selected.partnerId}`} style={styles.convHeadLink}>
-            {selected.partnerAvatar && avatarSrc(selected.partnerAvatar) && <img src={avatarSrc(selected.partnerAvatar)} alt="" style={styles.avatarImgTiny} />}
-            <div style={styles.convHead}>
-              Mit <b style={selected.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{selected.partnerName}</b>
-              {selected.itemTitle ? <> zu "{selected.itemTitle}"</> : ""}
-            </div>
+            {selected.partnerAvatar && avatarSrc(selected.partnerAvatar) ? (
+              <img src={avatarSrc(selected.partnerAvatar)} alt="" style={styles.avatarImgTiny} />
+            ) : (
+              <span style={styles.convAvatarFallback}>{selected.partnerName?.[0]?.toUpperCase() || "?"}</span>
+            )}
+            <span style={selected.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{selected.partnerName}</span>
           </a>
           <button type="button" style={styles.smallBtnGhost} onClick={() => {
             if (window.confirm("Diese Unterhaltung wirklich löschen? Sie verschwindet dadurch auch bei der anderen Person.")) {
               onDeleteConversation(selected.key);
               setSelectedKey(null);
             }
-          }}>Unterhaltung löschen</button>
+          }}>Löschen</button>
         </div>
+        {selected.itemTitle && (
+          <div style={styles.convItemCard}>
+            {selected.itemImage ? <img src={selected.itemImage} alt="" style={styles.convItemImg} /> : <div style={styles.convItemImgFallback} />}
+            <span style={styles.convItemTitle}>{selected.itemTitle}</span>
+          </div>
+        )}
         <div style={styles.convMessages}>
           {selected.messages.map((m) => (
-            <div key={m.id} style={{ ...styles.bubble, ...(m.from_id === userId ? styles.bubbleMine : styles.bubbleTheirs) }}>
-              <div style={styles.bubbleAuthor}>{m.from_id === userId ? "Du" : selected.partnerName}</div>
-              {m.text}
-              {m.from_id === userId && (
-                <button type="button" style={styles.msgDeleteBtn} title="Nachricht löschen" onClick={() => onDeleteMessage(m.id)}>×</button>
-              )}
+            <div key={m.id} style={{ ...styles.bubbleWrap, ...(m.from_id === userId ? styles.bubbleWrapMine : {}) }}>
+              <div style={{ ...styles.bubble, ...(m.from_id === userId ? styles.bubbleMine : styles.bubbleTheirs) }}>
+                {m.text}
+                {m.from_id === userId && (
+                  <button type="button" style={styles.msgDeleteBtn} title="Nachricht löschen" onClick={() => onDeleteMessage(m.id)}>×</button>
+                )}
+              </div>
+              <div style={{ ...styles.bubbleTime, ...(m.from_id === userId ? { textAlign: "right" } : {}) }}>
+                {new Date(m.created_at).toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" })}
+              </div>
             </div>
           ))}
         </div>
@@ -755,9 +767,13 @@ function Inbox({ conversations, userId, replyDrafts, onDraftChange, onReply, rep
         return (
           <button key={conv.key} type="button" style={styles.convListRow}
             onClick={() => { setSelectedKey(conv.key); if (unread > 0) onMarkRead(conv); }}>
+            {conv.partnerAvatar && avatarSrc(conv.partnerAvatar) ? (
+              <img src={avatarSrc(conv.partnerAvatar)} alt="" style={styles.convListAvatar} />
+            ) : (
+              <span style={styles.convAvatarFallbackBig}>{conv.partnerName?.[0]?.toUpperCase() || "?"}</span>
+            )}
             <div style={styles.convListMain}>
               <div style={styles.convListNameRow}>
-                {conv.partnerAvatar && avatarSrc(conv.partnerAvatar) && <img src={avatarSrc(conv.partnerAvatar)} alt="" style={styles.avatarImgTiny} />}
                 <span style={conv.partnerVerified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{conv.partnerName}</span>
                 {conv.itemTitle && <span style={styles.convListItem}> · {conv.itemTitle}</span>}
               </div>
@@ -897,10 +913,10 @@ function MessagesPage({
   );
 }
 
-function ActiveListingsSection({ listings, onDelete, onView, onEdit }) {
+function ActiveListingsSection({ listings, onDelete, onView, onEdit, hideTitle }) {
   return (
     <div style={{ marginBottom: 36 }}>
-      <h2 style={styles.profileSectionTitle}>Aktive Zettel</h2>
+      {!hideTitle && <h2 style={styles.profileSectionTitle}>Aktive Zettel</h2>}
       <p style={styles.legalP}>Deine Angebote und Gesuche, die gerade am Schwarzen Brett hängen. Zum Ansehen anklicken.</p>
       {listings.length === 0 ? (
         <div style={styles.inboxEmpty}>Noch nichts Aktives hier.</div>
@@ -925,10 +941,10 @@ function ActiveListingsSection({ listings, onDelete, onView, onEdit }) {
   );
 }
 
-function CompletedListingsSection({ listings, onDelete, profilesById }) {
+function CompletedListingsSection({ listings, onDelete, profilesById, hideTitle }) {
   return (
     <div>
-      <h2 style={styles.profileSectionTitle}>Abgeschlossene Zettel</h2>
+      {!hideTitle && <h2 style={styles.profileSectionTitle}>Abgeschlossene Zettel</h2>}
       <p style={styles.legalP}>Angebote, die vergeben wurden. Nur du siehst diese, sie tauchen am Schwarzen Brett nicht mehr auf.</p>
       {listings.length === 0 ? (
         <div style={styles.inboxEmpty}>Noch nichts Abgeschlossenes hier.</div>
@@ -955,10 +971,10 @@ function CompletedListingsSection({ listings, onDelete, profilesById }) {
   );
 }
 
-function FavoritesSection({ listings, onView }) {
+function FavoritesSection({ listings, onView, hideTitle }) {
   return (
     <div style={{ marginBottom: 36 }}>
-      <h2 style={styles.profileSectionTitle}>Merkliste</h2>
+      {!hideTitle && <h2 style={styles.profileSectionTitle}>Merkliste</h2>}
       <p style={styles.legalP}>Angebote, die du dir gemerkt hast. Zum Ansehen anklicken.</p>
       {listings.length === 0 ? (
         <div style={styles.inboxEmpty}>Noch nichts gemerkt. Klick auf das ♡ auf einem Zettel.</div>
@@ -981,10 +997,10 @@ function FavoritesSection({ listings, onView }) {
   );
 }
 
-function SavedSearchesSection({ searches, onApply, onDelete }) {
+function SavedSearchesSection({ searches, onApply, onDelete, hideTitle }) {
   return (
     <div style={{ marginBottom: 36 }}>
-      <h2 style={styles.profileSectionTitle}>Meine Suchagenten</h2>
+      {!hideTitle && <h2 style={styles.profileSectionTitle}>Meine Suchagenten</h2>}
       <p style={styles.legalP}>Gespeicherte Suchen. Bei neuen Treffern seit dem letzten Besuch steht eine Zahl daneben.</p>
       {searches.length === 0 ? (
         <div style={styles.inboxEmpty}>Noch kein Suchagent gespeichert. Nutze "Als Suchagent speichern" beim Schwarzen Brett.</div>
@@ -1300,12 +1316,12 @@ function PublicProfilePage({ userId, profilesById, listings, onViewListing, rati
   );
 }
 
-function AddressEditor({ address, onSave, saving }) {
+function AddressEditor({ address, onSave, saving, hideTitle }) {
   const [value, setValue] = useState(address || "");
   useEffect(() => { setValue(address || ""); }, [address]);
   return (
     <div style={styles.verifyBox}>
-      <h2 style={styles.profileSectionTitle}>Meine Lieferadresse</h2>
+      {!hideTitle && <h2 style={styles.profileSectionTitle}>Meine Lieferadresse</h2>}
       <p style={styles.legalP}>
         Einmal hier speichern, dann kannst du sie später in jeder Unterhaltung mit einem Klick einfügen, statt sie jedes Mal neu abzutippen.
         Sie ist privat und wird nur dann sichtbar, wenn du sie in einem Chat tatsächlich versendest.
@@ -1319,13 +1335,13 @@ function AddressEditor({ address, onSave, saving }) {
   );
 }
 
-function ReferralSection({ referralCode }) {
+function ReferralSection({ referralCode, hideTitle }) {
   const [copied, setCopied] = useState(false);
   if (!referralCode) return null;
   const link = `${window.location.origin}/#ref-${referralCode}`;
   return (
     <div style={styles.verifyBox}>
-      <h2 style={styles.profileSectionTitle}>Freund:innen werben</h2>
+      {!hideTitle && <h2 style={styles.profileSectionTitle}>Freund:innen werben</h2>}
       <p style={styles.legalP}>Teile deinen Link. Sobald sich jemand darüber anmeldet und sich später verifizieren lässt, bekommst du 5 {CURRENCY} geschenkt.</p>
       <div style={styles.wishRow}>
         <input className="mc-input" style={{ ...styles.input, flex: 1 }} readOnly value={link} onFocus={(e) => e.target.select()} />
@@ -1338,10 +1354,10 @@ function ReferralSection({ referralCode }) {
   );
 }
 
-function PushNotificationSection({ enabled, busy, error, onEnable }) {
+function PushNotificationSection({ enabled, busy, error, onEnable, hideTitle }) {
   return (
     <div style={styles.verifyBox}>
-      <h2 style={styles.profileSectionTitle}>Benachrichtigungen</h2>
+      {!hideTitle && <h2 style={styles.profileSectionTitle}>Benachrichtigungen</h2>}
       {enabled ? (
         <p style={styles.legalP}>✓ Aktiviert — du bekommst jetzt Push-Benachrichtigungen bei neuen Nachrichten und Angeboten (funktioniert am besten, wenn NoCashClub als App zum Home-Bildschirm hinzugefügt wurde).</p>
       ) : (
@@ -1358,22 +1374,65 @@ function PushNotificationSection({ enabled, busy, error, onEnable }) {
 }
 
 function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, onEditListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading, myAddress, onSaveAddress, addressSaving, pushEnabled, pushBusy, pushError, onEnablePush }) {
+  const [section, setSection] = useState(null);
+
+  const verifyStatus = profile?.verified ? "Verifiziert ✓" : profile?.verification_status === "pending" ? "Wird geprüft…" : "Noch offen";
+
+  const menu = [
+    { id: "edit", label: "Profil bearbeiten", icon: Pencil, color: "#9B6BD6" },
+    { id: "listings", label: "Aktive Zettel", icon: ListChecks, color: "#E0A63C", badge: activeListings.length || null },
+    { id: "completed", label: "Abgeschlossene Tausche", icon: CheckCircle2, color: "#8E8E93", badge: completedListings.length || null },
+    { id: "favorites", label: "Merkliste", icon: Star, color: "#3B93E0", badge: favoriteListings.length || null },
+    { id: "searches", label: "Suchagenten", icon: Bell, color: "#E0574C" },
+    { id: "verify", label: "Verifizierung", icon: ShieldCheck, color: "#2ECC71", badge: verifyStatus },
+    { id: "address", label: "Lieferadresse", icon: MapPin, color: "#3CBFAE" },
+    { id: "push", label: "Benachrichtigungen", icon: Bell, color: "#D65B9B", badge: pushEnabled ? "An" : null },
+    { id: "referral", label: "Freund:innen werben", icon: UserPlus, color: "#E08A3C" },
+  ];
+
+  if (section) {
+    const active = menu.find((m) => m.id === section);
+    return (
+      <div style={styles.legalPage}>
+        <button type="button" style={styles.legalBack} onClick={() => setSection(null)}>← Zurück zum Profil</button>
+        <h1 style={styles.legalTitle}>{active?.label}</h1>
+        {section === "edit" && <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />}
+        {section === "listings" && <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} onView={onViewActiveListing} onEdit={onEditListing} hideTitle />}
+        {section === "completed" && <CompletedListingsSection listings={completedListings} onDelete={onDeleteListing} profilesById={profilesById} hideTitle />}
+        {section === "favorites" && <FavoritesSection listings={favoriteListings} onView={onViewFavorite} hideTitle />}
+        {section === "searches" && <SavedSearchesSection searches={savedSearches} onApply={onApplySearch} onDelete={onDeleteSearch} hideTitle />}
+        {section === "verify" && <VerificationSection profile={profile} onSubmit={onSubmitVerification} uploading={verificationUploading} hideTitle />}
+        {section === "address" && <AddressEditor address={myAddress} onSave={onSaveAddress} saving={addressSaving} hideTitle />}
+        {section === "push" && <PushNotificationSection enabled={pushEnabled} busy={pushBusy} error={pushError} onEnable={onEnablePush} hideTitle />}
+        {section === "referral" && <ReferralSection referralCode={profile?.referral_code} hideTitle />}
+      </div>
+    );
+  }
+
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
-      <h1 style={styles.legalTitle}>Mein Profil</h1>
-      <div style={{ marginBottom: 36 }}>
-        <h2 style={styles.profileSectionTitle}>Profil bearbeiten</h2>
-        <ProfileEditor profile={profile} onSave={onSaveProfile} saving={profileSaving} />
+      <div style={styles.profileMenuHead}>
+        {profile?.avatar && avatarSrc(profile.avatar) ? (
+          <img src={avatarSrc(profile.avatar)} alt="" style={styles.publicProfileAvatar} />
+        ) : (
+          <span style={styles.convAvatarFallbackBig}>{profile?.display_name?.[0]?.toUpperCase() || "?"}</span>
+        )}
+        <div>
+          <h1 style={{ ...styles.legalTitle, margin: 0 }}>{profile?.display_name}</h1>
+          <a href={`#user-${profile?.id}`} style={styles.profileMenuPublicLink}>Öffentliches Profil ansehen →</a>
+        </div>
       </div>
-      <PushNotificationSection enabled={pushEnabled} busy={pushBusy} error={pushError} onEnable={onEnablePush} />
-      <ReferralSection referralCode={profile?.referral_code} />
-      <VerificationSection profile={profile} onSubmit={onSubmitVerification} uploading={verificationUploading} />
-      <AddressEditor address={myAddress} onSave={onSaveAddress} saving={addressSaving} />
-      <FavoritesSection listings={favoriteListings} onView={onViewFavorite} />
-      <SavedSearchesSection searches={savedSearches} onApply={onApplySearch} onDelete={onDeleteSearch} />
-      <ActiveListingsSection listings={activeListings} onDelete={onDeleteListing} onView={onViewActiveListing} onEdit={onEditListing} />
-      <CompletedListingsSection listings={completedListings} onDelete={onDeleteListing} profilesById={profilesById} />
+      <div style={styles.profileMenuList}>
+        {menu.map((m) => (
+          <button key={m.id} type="button" style={styles.profileMenuRow} onClick={() => setSection(m.id)}>
+            <span style={{ ...styles.profileMenuIcon, background: m.color }}><m.icon size={19} color="#fff" strokeWidth={2} /></span>
+            <span style={styles.profileMenuLabel}>{m.label}</span>
+            {m.badge != null && <span style={styles.profileMenuBadge}>{m.badge}</span>}
+            <ChevronRight size={18} color={COLORS.muted} />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2239,12 +2298,13 @@ export default function App() {
       const key = m.conv_key;
       if (!groups[key]) {
         const partnerId = m.from_id === session.user.id ? m.to_id : m.from_id;
-        groups[key] = { key, partnerId, partnerName: profilesById[partnerId]?.display_name || "?", partnerVerified: profilesById[partnerId]?.verified || false, partnerAvatar: profilesById[partnerId]?.avatar || null, itemId: m.item_id, itemTitle: m.item_title, messages: [] };
+        const itemListing = m.item_id ? listings.find((l) => l.id === m.item_id) : null;
+        groups[key] = { key, partnerId, partnerName: profilesById[partnerId]?.display_name || "?", partnerVerified: profilesById[partnerId]?.verified || false, partnerAvatar: profilesById[partnerId]?.avatar || null, itemId: m.item_id, itemTitle: m.item_title, itemImage: itemListing?.image_url || null, messages: [] };
       }
       groups[key].messages.push(m);
     });
     return Object.values(groups).sort((a, b) => b.messages[b.messages.length - 1].created_at.localeCompare(a.messages[a.messages.length - 1].created_at));
-  }, [messages, session, profilesById]);
+  }, [messages, session, profilesById, listings]);
 
   const unreadCount = useMemo(() => {
     if (!session) return 0;
@@ -3088,6 +3148,11 @@ export default function App() {
           opacity: 1;
         }
         @media (prefers-reduced-motion: reduce) { .mc-btn, .mc-ticket { transition: none !important; } .mc-btn:hover, .mc-ticket:hover { transform: none !important; } }
+        .mc-bottom-nav { display: none; }
+        @media (max-width: 720px) {
+          .mc-bottom-nav { display: flex; }
+          body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+        }
         .mc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 26px; }
         @media (max-width: 560px) { .mc-hero-title { font-size: 38px !important; } }
         @media (max-width: 820px) { .mc-board-layout { flex-direction: column !important; } .mc-board-layout > aside { position: static !important; width: 100% !important; } }
@@ -3609,12 +3674,54 @@ export default function App() {
           <a href="#datenschutz" style={styles.footerLink}>Datenschutz</a>
         </div>
       </footer>
+
+      <nav className="mc-bottom-nav" style={styles.bottomNav}>
+        <button type="button" style={{ ...styles.bottomNavItem, ...(page === "" ? styles.bottomNavItemActive : {}) }}
+          onClick={() => { window.location.hash = ""; window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+          <Home size={22} strokeWidth={page === "" ? 2.3 : 1.8} />
+          <span style={styles.bottomNavLabel}>Start</span>
+        </button>
+        <button type="button" style={styles.bottomNavItem}
+          onClick={() => {
+            window.location.hash = "";
+            setTimeout(() => document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }), 60);
+          }}>
+          <Search size={22} strokeWidth={1.8} />
+          <span style={styles.bottomNavLabel}>Suchen</span>
+        </button>
+        <button type="button" style={styles.bottomNavItemCta}
+          onClick={() => {
+            if (!session) { window.location.hash = ""; window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+            window.location.hash = "";
+            setShowForm(true);
+            setTimeout(() => document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }), 60);
+          }}>
+          <PlusCircle size={30} strokeWidth={1.8} />
+        </button>
+        <button type="button" style={{ ...styles.bottomNavItem, ...(page === "nachrichten" ? styles.bottomNavItemActive : {}) }}
+          onClick={() => { window.location.hash = session ? "nachrichten" : ""; }}>
+          <MessageCircle size={22} strokeWidth={page === "nachrichten" ? 2.3 : 1.8} />
+          {unreadCount > 0 && <span style={styles.bottomNavDot} />}
+          <span style={styles.bottomNavLabel}>Nachrichten</span>
+        </button>
+        <button type="button" style={{ ...styles.bottomNavItem, ...(page === "profil" ? styles.bottomNavItemActive : {}) }}
+          onClick={() => { window.location.hash = session ? "profil" : ""; }}>
+          <User size={22} strokeWidth={page === "profil" ? 2.3 : 1.8} />
+          <span style={styles.bottomNavLabel}>Profil</span>
+        </button>
+      </nav>
     </div>
   );
 }
 
 const styles = {
   page: { fontFamily: "'Inter', sans-serif", background: `radial-gradient(ellipse 1200px 600px at 50% -10%, #22261f 0%, ${COLORS.paper} 55%)`, backgroundColor: COLORS.paper, color: COLORS.ink, minHeight: "100vh" },
+  bottomNav: { position: "fixed", left: 12, right: 12, bottom: "calc(10px + env(safe-area-inset-bottom))", zIndex: 50, background: "rgba(35,38,38,0.94)", backdropFilter: "blur(10px)", border: `1px solid ${COLORS.hairline}`, borderRadius: 26, padding: "8px 6px", alignItems: "center", justifyContent: "space-around", boxShadow: "0 10px 30px rgba(0,0,0,0.4)" },
+  bottomNavItem: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "none", border: "none", color: COLORS.muted, cursor: "pointer", padding: "4px 6px", position: "relative", flex: 1 },
+  bottomNavItemActive: { color: COLORS.lime },
+  bottomNavItemCta: { display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.lime, color: "#fff", border: "none", borderRadius: "50%", width: 52, height: 52, cursor: "pointer", margin: "-18px 4px 0", boxShadow: "0 4px 14px rgba(46,204,113,0.45)", flexShrink: 0 },
+  bottomNavLabel: { fontSize: 10, fontWeight: 600, fontFamily: "'Inter', sans-serif" },
+  bottomNavDot: { position: "absolute", top: 2, right: "28%", width: 7, height: 7, borderRadius: "50%", background: COLORS.rust },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "calc(18px + env(safe-area-inset-top)) 32px 18px", borderBottom: "1px solid transparent", borderImage: `linear-gradient(90deg, ${COLORS.lime} 0%, ${COLORS.hairline} 35%) 1`, background: "rgba(26,28,27,0.92)", backdropFilter: "blur(6px)", position: "sticky", top: 0, zIndex: 5, boxShadow: "0 1px 0 rgba(255,255,255,0.03), 0 8px 20px rgba(0,0,0,0.2)" },
   logo: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: "0.005em", color: COLORS.lime },
   logoRow: { display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 },
@@ -3668,6 +3775,13 @@ const styles = {
   reviewComment: { fontSize: 13.5, margin: "6px 0 0", lineHeight: 1.5 },
   ticketOwnerRating: { display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: COLORS.muted, fontFamily: "'Inter', sans-serif" },
   publicProfileAvatar: { width: 64, height: 64, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
+  profileMenuHead: { display: "flex", alignItems: "center", gap: 16, marginBottom: 28 },
+  profileMenuPublicLink: { fontSize: 13, color: COLORS.lime, textDecoration: "none", fontWeight: 500 },
+  profileMenuList: { display: "flex", flexDirection: "column", gap: 8 },
+  profileMenuRow: { display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "13px 16px", cursor: "pointer", fontFamily: "'Inter', sans-serif" },
+  profileMenuIcon: { width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  profileMenuLabel: { flex: 1, fontSize: 15, fontWeight: 500, color: COLORS.ink },
+  profileMenuBadge: { fontSize: 12.5, color: COLORS.muted, marginRight: 2 },
   memberSinceLine: { fontSize: 12, color: COLORS.muted, margin: "4px 0 0" },
   avatarRow: { display: "flex", gap: 8, flexWrap: "wrap" },
   drawPadBox: { display: "flex", flexDirection: "column", alignItems: "flex-start" },
@@ -3699,18 +3813,28 @@ const styles = {
   convHeadLink: { display: "flex", alignItems: "center", gap: 8, textDecoration: "none" },
   convListNameRow: { display: "flex", alignItems: "center", gap: 6 },
   convList: { display: "flex", flexDirection: "column", gap: 8 },
-  convListRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textAlign: "left", width: "100%", border: `1.5px solid ${COLORS.stone}`, borderRadius: 8, padding: "12px 14px", background: COLORS.card, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
+  convListRow: { display: "flex", alignItems: "center", gap: 12, textAlign: "left", width: "100%", border: `1.5px solid ${COLORS.stone}`, borderRadius: 12, padding: "12px 14px", background: COLORS.card, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
+  convListAvatar: { width: 42, height: 42, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
+  convAvatarFallback: { width: 24, height: 24, borderRadius: "50%", background: COLORS.moss, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 },
+  convAvatarFallbackBig: { width: 42, height: 42, borderRadius: "50%", background: COLORS.moss, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700, flexShrink: 0 },
+  convBackBtn: { background: "none", border: "none", color: COLORS.ink, fontSize: 20, cursor: "pointer", padding: "0 4px 0 0", lineHeight: 1 },
+  convItemCard: { display: "flex", alignItems: "center", gap: 10, background: COLORS.paper, border: `1px solid ${COLORS.hairline}`, borderRadius: 10, padding: 8, marginBottom: 12 },
+  convItemImg: { width: 40, height: 40, borderRadius: 6, objectFit: "cover" },
+  convItemImgFallback: { width: 40, height: 40, borderRadius: 6, background: COLORS.stone },
+  convItemTitle: { fontSize: 13, fontWeight: 600 },
+  convMessages: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 8, maxHeight: 420, overflowY: "auto", padding: "4px 2px" },
+  bubbleWrap: { display: "flex", flexDirection: "column", alignItems: "flex-start", maxWidth: "85%" },
+  bubbleWrapMine: { alignItems: "flex-end", marginLeft: "auto" },
+  bubble: { padding: "10px 13px", borderRadius: 16, fontSize: 14, lineHeight: 1.4, position: "relative" },
+  bubbleMine: { background: COLORS.lime, color: COLORS.paper, borderBottomRightRadius: 4, fontWeight: 500 },
+  bubbleTheirs: { background: COLORS.paper, border: `1px solid ${COLORS.stone}`, borderBottomLeftRadius: 4 },
+  bubbleTime: { fontSize: 10.5, color: COLORS.muted, marginTop: 3, padding: "0 4px" },
   convListMain: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 },
   convListItem: { color: COLORS.muted, fontSize: 12.5 },
   convListSnippet: { color: COLORS.muted, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 320 },
   unreadBadge: { flexShrink: 0, background: COLORS.rust, color: "#fff", borderRadius: 20, minWidth: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, padding: "0 6px" },
   msgDeleteBtn: { marginLeft: 8, background: "none", border: "none", color: "inherit", opacity: 0.6, cursor: "pointer", fontSize: 14, fontWeight: 700, verticalAlign: "middle" },
   convHead: { fontSize: 12.5, color: COLORS.muted, marginBottom: 8, fontFamily: "'Inter', sans-serif" },
-  convMessages: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 },
-  bubble: { padding: "8px 10px", borderRadius: 8, fontSize: 13.5, maxWidth: "85%" },
-  bubbleMine: { background: COLORS.lime, alignSelf: "flex-end", marginLeft: "auto" },
-  bubbleTheirs: { background: COLORS.paper, border: `1px solid ${COLORS.stone}` },
-  bubbleAuthor: { fontSize: 10.5, fontFamily: "'Inter', sans-serif", color: COLORS.muted, marginBottom: 2 },
   convReplyRow: { display: "flex", gap: 8 },
   chatRoomTabs: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   chatRoomTab: { fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "8px 14px", border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer", borderRadius: 20 },
