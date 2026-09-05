@@ -4,6 +4,7 @@ import {
   Dumbbell, Baby, PawPrint, BookOpen, Gem, Package, Handshake,
   Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck, Share2, Search, Star,
   Home, PlusCircle, MessageCircle, User, Pencil, Bell, MapPin, UserPlus, ChevronRight, ListChecks,
+  ShieldAlert, MessagesSquare, HelpCircle, LogOut,
 } from "lucide-react";
 
 import { supabase } from "./supabaseClient";
@@ -1373,7 +1374,7 @@ function PushNotificationSection({ enabled, busy, error, onEnable, hideTitle }) 
   );
 }
 
-function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, onEditListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading, myAddress, onSaveAddress, addressSaving, pushEnabled, pushBusy, pushError, onEnablePush }) {
+function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, completedListings, onDeleteListing, profilesById, onViewActiveListing, onEditListing, favoriteListings, onViewFavorite, savedSearches, onApplySearch, onDeleteSearch, onSubmitVerification, verificationUploading, myAddress, onSaveAddress, addressSaving, pushEnabled, pushBusy, pushError, onEnablePush, isAdmin, onLogout }) {
   const [section, setSection] = useState(null);
 
   const verifyStatus = profile?.verified ? "Verifiziert ✓" : profile?.verification_status === "pending" ? "Wird geprüft…" : "Noch offen";
@@ -1388,6 +1389,12 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
     { id: "address", label: "Lieferadresse", icon: MapPin, color: "#3CBFAE" },
     { id: "push", label: "Benachrichtigungen", icon: Bell, color: "#D65B9B", badge: pushEnabled ? "An" : null },
     { id: "referral", label: "Freund:innen werben", icon: UserPlus, color: "#E08A3C" },
+  ];
+
+  const mobileLinks = [
+    { id: "chat", label: "Plausch-Ecke", icon: MessagesSquare, color: "#3B93E0", href: "chat" },
+    ...(isAdmin ? [{ id: "adminlink", label: "Admin", icon: ShieldAlert, color: "#E0574C", href: "admin" }] : []),
+    { id: "faqlink", label: "Häufige Fragen", icon: HelpCircle, color: "#8E8E93", href: "faq" },
   ];
 
   if (section) {
@@ -1432,6 +1439,19 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
             <ChevronRight size={18} color={COLORS.muted} />
           </button>
         ))}
+      </div>
+      <div style={styles.profileMenuList2}>
+        {mobileLinks.map((m) => (
+          <button key={m.id} type="button" style={styles.profileMenuRow} onClick={() => { window.location.hash = m.href; }}>
+            <span style={{ ...styles.profileMenuIcon, background: m.color }}><m.icon size={19} color="#fff" strokeWidth={2} /></span>
+            <span style={styles.profileMenuLabel}>{m.label}</span>
+            <ChevronRight size={18} color={COLORS.muted} />
+          </button>
+        ))}
+        <button type="button" style={{ ...styles.profileMenuRow, marginTop: 8 }} onClick={onLogout}>
+          <span style={{ ...styles.profileMenuIcon, background: COLORS.stone }}><LogOut size={19} color="#fff" strokeWidth={2} /></span>
+          <span style={styles.profileMenuLabel}>Abmelden</span>
+        </button>
       </div>
     </div>
   );
@@ -3149,8 +3169,10 @@ export default function App() {
         }
         @media (prefers-reduced-motion: reduce) { .mc-btn, .mc-ticket { transition: none !important; } .mc-btn:hover, .mc-ticket:hover { transform: none !important; } }
         .mc-bottom-nav { display: none; }
+        .mc-header-desktop-only { display: flex; }
         @media (max-width: 720px) {
           .mc-bottom-nav { display: flex; }
+          .mc-header-desktop-only { display: none !important; }
           body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
         }
         .mc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 26px; }
@@ -3166,33 +3188,31 @@ export default function App() {
         </button>
         <div style={styles.headerRight}>
           {session ? (
-            <span style={styles.whoami}>
-              {isAdmin && (
-                <button style={styles.reportPillBtn} onClick={() => { window.location.hash = "admin"; }}>
-                  Admin {(openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length})` : ""}
-                </button>
-              )}
-              {profile && (
-                <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "nachrichten"; }}>
-                  Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length})` : ""}
-                </button>
-              )}
-              {session && (
-                <button style={styles.msgPillBtn} onClick={() => { window.location.hash = "chat"; }}>💬 Chat</button>
-              )}
-              {profile?.avatar && avatarSrc(profile.avatar) && <img src={avatarSrc(profile.avatar)} alt="" style={styles.avatarImgTiny} />}
-              <b>Hey, {profile ? profile.display_name : session.user.email}</b>
+            <>
               {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
-              {!profile && <span style={styles.authError}>Profil konnte nicht geladen werden</span>}
-              {profile && <button style={styles.logoutLink} onClick={() => { window.location.hash = "profil"; }}>profil{totalNewSearchMatches > 0 ? ` (${totalNewSearchMatches})` : ""}</button>}
-              <button style={styles.logoutLink} onClick={() => { window.location.hash = "faq"; }}>faq</button>
-              <button style={styles.logoutLink} onClick={handleLogout}>abmelden</button>
-            </span>
+              <div className="mc-header-desktop-only" style={styles.headerActions}>
+                {isAdmin && (
+                  <button style={styles.headerPillAlert} onClick={() => { window.location.hash = "admin"; }}>
+                    <ShieldAlert size={15} strokeWidth={2} /> Admin {(openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length})` : ""}
+                  </button>
+                )}
+                <button style={styles.headerPill} onClick={() => { window.location.hash = "nachrichten"; }}>
+                  <MessageCircle size={15} strokeWidth={2} /> Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length})` : ""}
+                </button>
+                <button style={styles.headerPill} onClick={() => { window.location.hash = "chat"; }}><MessagesSquare size={15} strokeWidth={2} /> Chat</button>
+                <button style={styles.headerPillGhost} onClick={() => { window.location.hash = "profil"; }}>
+                  {profile?.avatar && avatarSrc(profile.avatar) ? <img src={avatarSrc(profile.avatar)} alt="" style={styles.avatarImgTiny} /> : <User size={15} strokeWidth={2} />}
+                  {profile ? profile.display_name : "Profil"}{totalNewSearchMatches > 0 ? ` (${totalNewSearchMatches})` : ""}
+                </button>
+                <button style={styles.headerPillGhost} onClick={() => { window.location.hash = "faq"; }}><HelpCircle size={15} strokeWidth={2} /> FAQ</button>
+                <button style={styles.headerPillGhost} onClick={handleLogout}><LogOut size={15} strokeWidth={2} /> Abmelden</button>
+              </div>
+            </>
           ) : (
-            <span style={styles.whoami}>
-              <button style={styles.logoutLink} onClick={() => { window.location.hash = "faq"; }}>faq</button>
-              nicht angemeldet
-            </span>
+            <div style={styles.headerActions}>
+              <button style={styles.headerPillGhost} onClick={() => { window.location.hash = "faq"; }}><HelpCircle size={15} strokeWidth={2} /> FAQ</button>
+              <span className="mc-header-desktop-only" style={styles.headerNotLoggedIn}>nicht angemeldet</span>
+            </div>
           )}
         </div>
       </header>
@@ -3206,7 +3226,7 @@ export default function App() {
           onMarkRead={markConversationRead} onDeleteMessage={deleteMessage} onDeleteConversation={deleteConversation} myAddress={myAddress}
         />
       ) : page === "profil" && session && profile ? (
-        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} myAddress={myAddress} onSaveAddress={saveMyAddress} addressSaving={addressSaving} pushEnabled={pushEnabled} pushBusy={pushBusy} pushError={pushError} onEnablePush={enablePushNotifications} />
+        <ProfilePage profile={profile} onSaveProfile={saveProfile} profileSaving={profileSaving} activeListings={myAvailableListings} completedListings={myCompletedListings} onDeleteListing={deleteListing} profilesById={profilesById} onViewActiveListing={viewListingOnBoard} onEditListing={startEditListing} favoriteListings={myFavoriteListings} onViewFavorite={viewListingOnBoard} savedSearches={savedSearchesWithCounts} onApplySearch={applySavedSearch} onDeleteSearch={deleteSavedSearch} onSubmitVerification={submitVerification} verificationUploading={verificationUploading} myAddress={myAddress} onSaveAddress={saveMyAddress} addressSaving={addressSaving} pushEnabled={pushEnabled} pushBusy={pushBusy} pushError={pushError} onEnablePush={enablePushNotifications} isAdmin={isAdmin} onLogout={handleLogout} />
       ) : page === "faq" ? (
         <FaqPage session={session} onSendQuestion={sendQuestionToAdmin} sendingQuestion={sendingQuestion} />
       ) : page === "chat" ? (
@@ -3729,10 +3749,13 @@ const styles = {
   logoWordmarkText: { fontFamily: "'Fredoka', sans-serif", fontWeight: 700, fontSize: 23, color: COLORS.ink, letterSpacing: "-0.4px" },
   logoWordmarkAccent: { color: COLORS.lime },
   logoImg: { height: 34, width: "auto" },
-  headerRight: { fontSize: 13, color: COLORS.muted },
-  whoami: { fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  balancePill: { display: "inline-flex", alignItems: "center", gap: 5, background: "linear-gradient(180deg, rgba(240,213,126,0.16) 0%, rgba(143,107,26,0.10) 100%)", border: "1.5px solid #C9A227", borderRadius: 20, padding: "2px 12px 2px 6px", fontWeight: 700, color: "#F0D57E" },
-  reportPillBtn: { background: COLORS.rust, color: "#fff", border: "none", borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
+  headerRight: { fontSize: 13, color: COLORS.muted, display: "flex", alignItems: "center", gap: 12 },
+  headerActions: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontFamily: "'Inter', sans-serif" },
+  balancePill: { display: "inline-flex", alignItems: "center", gap: 5, background: "linear-gradient(180deg, rgba(240,213,126,0.16) 0%, rgba(143,107,26,0.10) 100%)", border: "1.5px solid #C9A227", borderRadius: 20, padding: "2px 12px 2px 6px", fontWeight: 700, color: "#F0D57E", flexShrink: 0 },
+  headerPill: { display: "inline-flex", alignItems: "center", gap: 6, background: COLORS.card, color: COLORS.ink, border: `1px solid ${COLORS.hairline}`, borderRadius: 20, padding: "6px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
+  headerPillAlert: { display: "inline-flex", alignItems: "center", gap: 6, background: COLORS.rust, color: "#fff", border: "none", borderRadius: 20, padding: "6px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
+  headerPillGhost: { display: "inline-flex", alignItems: "center", gap: 6, background: "none", color: COLORS.muted, border: "none", borderRadius: 20, padding: "6px 10px", fontSize: 12.5, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" },
+  headerNotLoggedIn: { fontSize: 12.5, color: COLORS.muted, fontFamily: "'Inter', sans-serif" },
   tradePill: { background: COLORS.moss, color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 11 },
   msgPillBtn: { background: "transparent", color: COLORS.ink, border: `1.5px solid ${COLORS.ink}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   logoutLink: { background: "none", border: "none", textDecoration: "underline", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.lime },
@@ -3778,6 +3801,7 @@ const styles = {
   profileMenuHead: { display: "flex", alignItems: "center", gap: 16, marginBottom: 28 },
   profileMenuPublicLink: { fontSize: 13, color: COLORS.lime, textDecoration: "none", fontWeight: 500 },
   profileMenuList: { display: "flex", flexDirection: "column", gap: 8 },
+  profileMenuList2: { display: "flex", flexDirection: "column", gap: 8, marginTop: 24, paddingTop: 20, borderTop: `1px solid ${COLORS.hairline}` },
   profileMenuRow: { display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "13px 16px", cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   profileMenuIcon: { width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   profileMenuLabel: { flex: 1, fontSize: 15, fontWeight: 500, color: COLORS.ink },
