@@ -3385,14 +3385,14 @@ export default function App() {
       )}
 
       <section id="angebote" style={styles.board}>
-        <div style={styles.boardHead}>
+        <div id="board-head" style={styles.boardHead}>
           <h2 style={styles.boardTitle}>Alle Angebote</h2>
           {session && (
             <button className="mc-btn" style={styles.primaryBtn} onClick={() => { if (showForm) { cancelListingForm(); } else { setShowForm(true); } }}>{showForm ? "Abbrechen" : "+ Zettel aufhängen"}</button>
           )}
         </div>
 
-        <div style={styles.searchWrap}>
+        <div id="such-feld" style={styles.searchWrap}>
           <Search size={18} strokeWidth={2} style={styles.searchIcon} />
           <input className="mc-input" style={{ ...styles.searchInput, paddingLeft: 44 }} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen, z. B. Bohrmaschine, Nachhilfe, Aquarium…" />
         </div>
@@ -3655,7 +3655,7 @@ export default function App() {
                     <h3 style={styles.emptyStateTitle}>Hier ist noch Platz für deinen Zettel</h3>
                     <p style={styles.emptyStateText}>Sei die erste Person, die hier etwas anbietet oder sucht.</p>
                     {session ? (
-                      <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { setShowForm(true); document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }); }}>+ Ersten Zettel aufhängen</button>
+                      <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { setShowForm(true); document.getElementById("board-head")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>+ Ersten Zettel aufhängen</button>
                     ) : (
                       <p style={styles.emptyStateText}>Melde dich an, um loszulegen.</p>
                     )}
@@ -3736,7 +3736,10 @@ export default function App() {
           onClick={() => {
             setPage("");
             window.location.hash = "";
-            setTimeout(() => document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }), 80);
+            setTimeout(() => {
+              document.getElementById("such-feld")?.scrollIntoView({ behavior: "smooth", block: "center" });
+              document.getElementById("such-feld")?.querySelector("input")?.focus();
+            }, 80);
           }}>
           <Search size={22} strokeWidth={1.8} />
           <span style={styles.bottomNavLabel}>Suchen</span>
@@ -3747,7 +3750,7 @@ export default function App() {
             window.location.hash = "";
             if (!session) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
             setShowForm(true);
-            setTimeout(() => document.getElementById("angebote")?.scrollIntoView({ behavior: "smooth" }), 80);
+            setTimeout(() => document.getElementById("board-head")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
           }}>
           <PlusCircle size={30} strokeWidth={1.8} />
         </button>
