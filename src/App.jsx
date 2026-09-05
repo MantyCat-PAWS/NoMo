@@ -1970,6 +1970,16 @@ export default function App() {
 
   const [authMode, setAuthMode] = useState("login");
   const [showForgotForm, setShowForgotForm] = useState(false);
+  const [authHighlight, setAuthHighlight] = useState(false);
+  function promptLogin() {
+    setPage("");
+    window.location.hash = "";
+    setTimeout(() => {
+      document.getElementById("anmelden")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setAuthHighlight(true);
+      setTimeout(() => setAuthHighlight(false), 1600);
+    }, 80);
+  }
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotBusy, setForgotBusy] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
@@ -3325,7 +3335,7 @@ export default function App() {
         </div>
       )}
       {!session && (
-        <section style={styles.authBox}>
+        <section id="anmelden" style={{ ...styles.authBox, scrollMarginTop: 96, ...(authHighlight ? styles.authBoxHighlight : {}) }}>
           <div style={styles.authTabs}>
             <button style={{ ...styles.authTab, ...(authMode === "login" ? styles.authTabActive : {}) }} onClick={() => { setAuthMode("login"); setAuthError(null); setAuthInfo(null); setShowForgotForm(false); }}>Anmelden</button>
             <button style={{ ...styles.authTab, ...(authMode === "register" ? styles.authTabActive : {}) }} onClick={() => { setAuthMode("register"); setAuthError(null); setAuthInfo(null); setShowForgotForm(false); }}>Konto anlegen</button>
@@ -3385,14 +3395,14 @@ export default function App() {
       )}
 
       <section id="angebote" style={styles.board}>
-        <div id="board-head" style={styles.boardHead}>
+        <div id="board-head" style={{ ...styles.boardHead, scrollMarginTop: 96 }}>
           <h2 style={styles.boardTitle}>Alle Angebote</h2>
           {session && (
             <button className="mc-btn" style={styles.primaryBtn} onClick={() => { if (showForm) { cancelListingForm(); } else { setShowForm(true); } }}>{showForm ? "Abbrechen" : "+ Zettel aufhängen"}</button>
           )}
         </div>
 
-        <div id="such-feld" style={styles.searchWrap}>
+        <div id="such-feld" style={{ ...styles.searchWrap, scrollMarginTop: 96 }}>
           <Search size={18} strokeWidth={2} style={styles.searchIcon} />
           <input className="mc-input" style={{ ...styles.searchInput, paddingLeft: 44 }} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen, z. B. Bohrmaschine, Nachhilfe, Aquarium…" />
         </div>
@@ -3746,22 +3756,22 @@ export default function App() {
         </button>
         <button type="button" style={styles.bottomNavItemCta}
           onClick={() => {
+            if (!session) { promptLogin(); return; }
             setPage("");
             window.location.hash = "";
-            if (!session) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
             setShowForm(true);
             setTimeout(() => document.getElementById("board-head")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
           }}>
           <PlusCircle size={30} strokeWidth={1.8} />
         </button>
         <button type="button" style={{ ...styles.bottomNavItem, ...(page === "nachrichten" ? styles.bottomNavItemActive : {}) }}
-          onClick={() => { window.location.hash = session ? "nachrichten" : ""; }}>
+          onClick={() => { if (!session) { promptLogin(); return; } window.location.hash = "nachrichten"; }}>
           <MessageCircle size={22} strokeWidth={page === "nachrichten" ? 2.3 : 1.8} />
           {unreadCount > 0 && <span style={styles.bottomNavDot} />}
           <span style={styles.bottomNavLabel}>Nachrichten</span>
         </button>
         <button type="button" style={{ ...styles.bottomNavItem, ...(page === "profil" ? styles.bottomNavItemActive : {}) }}
-          onClick={() => { window.location.hash = session ? "profil" : ""; }}>
+          onClick={() => { if (!session) { promptLogin(); return; } window.location.hash = "profil"; }}>
           <User size={22} strokeWidth={page === "profil" ? 2.3 : 1.8} />
           <span style={styles.bottomNavLabel}>Profil</span>
         </button>
@@ -3808,7 +3818,8 @@ const styles = {
   howIconCircle: { width: 56, height: 56, borderRadius: "50%", background: COLORS.card, border: `1.5px solid ${COLORS.hairline}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" },
   howStepTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 17, fontWeight: 700, margin: "0 0 6px" },
   howStepText: { fontSize: 13.5, color: COLORS.muted, lineHeight: 1.5, margin: 0, maxWidth: 260, marginLeft: "auto", marginRight: "auto" },
-  authBox: { maxWidth: 440, margin: "8px auto 0", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "24px 26px 26px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", position: "relative", zIndex: 2 },
+  authBox: { maxWidth: 440, margin: "8px auto 0", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "24px 26px 26px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", position: "relative", zIndex: 2, transition: "box-shadow 0.3s ease, border-color 0.3s ease" },
+  authBoxHighlight: { borderColor: COLORS.lime, boxShadow: `0 0 0 4px rgba(46,204,113,0.25), 0 8px 24px rgba(46,204,113,0.3)` },
   lightboxOverlayFallback: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 24 },
   resetPasswordBox: { background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "28px 26px", maxWidth: 400, width: "100%" },
   authTabs: { display: "flex", gap: 6, marginBottom: 14 },
