@@ -1990,11 +1990,25 @@ export default function App() {
   const [authMode, setAuthMode] = useState("login");
   const [showForgotForm, setShowForgotForm] = useState(false);
   const [authHighlight, setAuthHighlight] = useState(false);
+
+  // Springt zuverlässig zu einem Element, egal wie hoch der feste Header gerade
+  // tatsächlich ist (Notch/Dynamic Island unterscheiden sich je Gerät) — misst
+  // die echte Höhe direkt vom Bildschirm, statt eine Zahl zu raten.
+  function scrollToId(id, extra = 14) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const headerEl = document.querySelector("header");
+    const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+    const rect = el.getBoundingClientRect();
+    const targetY = window.scrollY + rect.top - headerHeight - extra;
+    window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+  }
+
   function promptLogin() {
     setPage("");
     window.location.hash = "";
     setTimeout(() => {
-      document.getElementById("anmelden")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToId("anmelden");
       setAuthHighlight(true);
       setTimeout(() => setAuthHighlight(false), 1600);
     }, 80);
@@ -3701,7 +3715,7 @@ export default function App() {
                     <h3 style={styles.emptyStateTitle}>Hier ist noch Platz für deinen Zettel</h3>
                     <p style={styles.emptyStateText}>Sei die erste Person, die hier etwas anbietet oder sucht.</p>
                     {session ? (
-                      <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { setShowForm(true); document.getElementById("board-head")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>+ Ersten Zettel aufhängen</button>
+                      <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { setShowForm(true); setTimeout(() => scrollToId("board-head"), 200); }}>+ Ersten Zettel aufhängen</button>
                     ) : (
                       <p style={styles.emptyStateText}>Melde dich an, um loszulegen.</p>
                     )}
@@ -3784,9 +3798,9 @@ export default function App() {
             setPage("");
             window.location.hash = "";
             setTimeout(() => {
-              document.getElementById("such-feld")?.scrollIntoView({ behavior: "smooth", block: "center" });
+              scrollToId("such-feld");
               document.getElementById("such-feld")?.querySelector("input")?.focus();
-            }, 80);
+            }, 100);
           }}>
           <Search size={22} strokeWidth={1.8} />
           <span style={styles.bottomNavLabel}>Suchen</span>
@@ -3797,7 +3811,7 @@ export default function App() {
             setPage("");
             window.location.hash = "";
             setShowForm(true);
-            setTimeout(() => document.getElementById("board-head")?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
+            setTimeout(() => scrollToId("board-head"), 220);
           }}>
           <PlusCircle size={30} strokeWidth={1.8} />
         </button>
