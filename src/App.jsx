@@ -280,13 +280,14 @@ function TradeOfferForm({ item, myListings, onSubmit, onCancel, submitting }) {
   );
 }
 
-function OfferForm({ item, onSubmit, onCancel, submitting, onSwitchToTrade }) {
+function OfferForm({ item, onSubmit, onCancel, submitting, onSwitchToTrade, myBalance }) {
   const askingTotal = item.price + (item.shipping_paws || 0);
   const canOfferPickup = catInfo(item.category).physical && item.ships !== false && (item.shipping_paws || 0) > 0;
   const [pickup, setPickup] = useState(false);
   const [amount, setAmount] = useState(String(askingTotal));
   const n = Number(amount);
   const isLower = n < (pickup ? item.price : askingTotal);
+  const notEnough = myBalance != null && amount !== "" && n > myBalance;
 
   function togglePickup() {
     const next = !pickup;
@@ -309,13 +310,17 @@ function OfferForm({ item, onSubmit, onCancel, submitting, onSwitchToTrade }) {
         Wie viel {CURRENCY} bietest du?
         <input className="mc-input" style={styles.input} type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
       </label>
-      {isLower && n >= 0 && (
+      {notEnough ? (
+        <p style={{ ...styles.legalP, marginBottom: 0, color: COLORS.rust }}>
+          Du hast nur {myBalance} {CURRENCY} — das reicht für dieses Angebot nicht ganz. Bitte einen niedrigeren Betrag eingeben (max. {myBalance}).
+        </p>
+      ) : isLower && n >= 0 && (
         <p style={{ ...styles.legalP, marginBottom: 0 }}>
           Das sind {(pickup ? item.price : askingTotal) - n} {CURRENCY} weniger als der {pickup ? "Preis ohne Versand" : "Angebotspreis"} ({pickup ? item.price : askingTotal} {CURRENCY}) — {item.owner_display_name} kann dein Angebot annehmen oder ablehnen.
         </p>
       )}
       <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-        <button type="button" style={styles.smallBtn} disabled={amount === "" || n < 0 || submitting} onClick={() => onSubmit(item, n, pickup)}>
+        <button type="button" style={styles.smallBtn} disabled={amount === "" || n < 0 || submitting || notEnough} onClick={() => onSubmit(item, n, pickup)}>
           {submitting ? "wird gesendet…" : "Anfrage senden"}
         </button>
         <button type="button" style={styles.smallBtnGhostInk} onClick={onCancel}>Abbrechen</button>
@@ -367,7 +372,7 @@ function ReportForm({ item, onSubmit, onCancel, submitting }) {
   );
 }
 
-function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, offerFormOpen, onToggleOfferForm, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting, isFavorited, onToggleFavorite, favoriteBusy }) {
+function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDelete, onRequest, requesting, showRating, onRate, ratingSubmitting, myListings, tradeFormOpen, onToggleTradeForm, onSubmitTrade, tradeSubmitting, msgFormOpen, onToggleMsgForm, onSubmitMessage, msgSubmitting, offerFormOpen, onToggleOfferForm, reportFormOpen, onToggleReportForm, onSubmitReport, reportSubmitting, isFavorited, onToggleFavorite, favoriteBusy, myBalance }) {
   const info = catInfo(item.category);
   const total = item.price + (item.shipping_paws || 0);
   const isSuche = item.listing_type === "suche";
@@ -468,7 +473,7 @@ function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDele
         </div>
       )}
       {!isMine && offerFormOpen && (
-        <OfferForm item={item} onSubmit={onRequest} onCancel={() => onToggleOfferForm(item.id)} submitting={requesting} onSwitchToTrade={() => onToggleTradeForm(item.id)} />
+        <OfferForm item={item} onSubmit={onRequest} onCancel={() => onToggleOfferForm(item.id)} submitting={requesting} onSwitchToTrade={() => onToggleTradeForm(item.id)} myBalance={myBalance} />
       )}
       {!isMine && tradeFormOpen && (
         <TradeOfferForm item={item} myListings={myListings} onSubmit={onSubmitTrade} onCancel={() => onToggleTradeForm(item.id)} submitting={tradeSubmitting} />
@@ -635,7 +640,22 @@ function ProfileEditor({ profile, onSave, saving }) {
   const [wishlist, setWishlist] = useState(profile.wishlist || []);
   const [wishDraft, setWishDraft] = useState("");
   const [showDrawPad, setShowDrawPad] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const isCustomAvatar = typeof avatar === "string" && avatar.startsWith("data:image");
+  const isFirstRender = useRef(true);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      await onSave({ avatar, motto: motto.trim(), bio: bio.trim(), wishlist });
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    }, 700);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatar, motto, bio, wishlist]);
 
   function addWish() {
     const v = wishDraft.trim();
@@ -698,10 +718,9 @@ function ProfileEditor({ profile, onSave, saving }) {
           ))}
         </div>
       )}
-      <button type="button" className="mc-btn" style={styles.primaryBtn} disabled={saving}
-        onClick={() => onSave({ avatar, motto: motto.trim(), bio: bio.trim(), wishlist })}>
-        {saving ? "Wird gespeichert…" : "Profil speichern"}
-      </button>
+      <div style={styles.autoSaveStatus}>
+        {saving ? "Wird gespeichert…" : justSaved ? "Gespeichert ✓" : "Änderungen werden automatisch gespeichert"}
+      </div>
     </div>
   );
 }
@@ -2167,7 +2186,15 @@ export default function App() {
     if (!session) return;
     setPushError(null);
     if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setPushError("Dein Browser unterstützt leider keine Push-Benachrichtigungen.");
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const isStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
+      if (isIOS && !isStandalone) {
+        setPushError("Am iPhone geht das nur, wenn NoCashClub zuvor zum Home-Bildschirm hinzugefügt wurde (Teilen-Symbol → \"Zum Home-Bildschirm\"). Öffne NoCashClub danach über das neue App-Symbol und versuch's hier nochmal.");
+      } else if (isIOS) {
+        setPushError("Push-Benachrichtigungen brauchen mindestens iOS 16.4. Bitte dein iPhone in den Einstellungen aktualisieren und nochmal versuchen.");
+      } else {
+        setPushError("Dein Browser unterstützt leider keine Push-Benachrichtigungen.");
+      }
       return;
     }
     setPushBusy(true);
@@ -3322,6 +3349,15 @@ export default function App() {
         </div>
       </section>
 
+      <section style={styles.chatTeaser}>
+        <div style={styles.chatTeaserIcon}><MessagesSquare size={22} strokeWidth={1.8} color="#fff" /></div>
+        <div style={{ flex: 1 }}>
+          <h3 style={styles.chatTeaserTitle}>Noch nichts Passendes dabei?</h3>
+          <p style={styles.chatTeaserText}>Quatsch in der Plausch-Ecke mit — Basteln, Kochen, Garten & mehr.</p>
+        </div>
+        <button type="button" style={styles.chatTeaserBtn} onClick={() => { window.location.hash = "chat"; }}>Zum Chat →</button>
+      </section>
+
       {SHOW_AD_BANNER && (
         <div className="mc-ad" style={styles.adBanner}>
           <div style={styles.adBannerInner}>
@@ -3395,14 +3431,14 @@ export default function App() {
       )}
 
       <section id="angebote" style={styles.board}>
-        <div id="board-head" style={{ ...styles.boardHead, scrollMarginTop: 96 }}>
+        <div id="board-head" style={{ ...styles.boardHead, scrollMarginTop: 140 }}>
           <h2 style={styles.boardTitle}>Alle Angebote</h2>
           {session && (
             <button className="mc-btn" style={styles.primaryBtn} onClick={() => { if (showForm) { cancelListingForm(); } else { setShowForm(true); } }}>{showForm ? "Abbrechen" : "+ Zettel aufhängen"}</button>
           )}
         </div>
 
-        <div id="such-feld" style={{ ...styles.searchWrap, scrollMarginTop: 96 }}>
+        <div id="such-feld" style={{ ...styles.searchWrap, scrollMarginTop: 140 }}>
           <Search size={18} strokeWidth={2} style={styles.searchIcon} />
           <input className="mc-input" style={{ ...styles.searchInput, paddingLeft: 44 }} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen, z. B. Bohrmaschine, Nachhilfe, Aquarium…" />
         </div>
@@ -3713,6 +3749,7 @@ export default function App() {
                         isFavorited={favorites.some((f) => f.item_id === item.id)}
                         onToggleFavorite={toggleFavorite}
                         favoriteBusy={favoriteBusyId === item.id}
+                        myBalance={profile?.balance}
                       />
                     </div>
                   );
@@ -3760,7 +3797,7 @@ export default function App() {
             setPage("");
             window.location.hash = "";
             setShowForm(true);
-            setTimeout(() => document.getElementById("board-head")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+            setTimeout(() => document.getElementById("board-head")?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
           }}>
           <PlusCircle size={30} strokeWidth={1.8} />
         </button>
@@ -3818,6 +3855,11 @@ const styles = {
   howIconCircle: { width: 56, height: 56, borderRadius: "50%", background: COLORS.card, border: `1.5px solid ${COLORS.hairline}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" },
   howStepTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 17, fontWeight: 700, margin: "0 0 6px" },
   howStepText: { fontSize: 13.5, color: COLORS.muted, lineHeight: 1.5, margin: 0, maxWidth: 260, marginLeft: "auto", marginRight: "auto" },
+  chatTeaser: { maxWidth: 780, margin: "12px auto 0", display: "flex", alignItems: "center", gap: 14, background: `linear-gradient(135deg, ${COLORS.moss}, ${COLORS.mossDark})`, borderRadius: 14, padding: "16px 20px", flexWrap: "wrap" },
+  chatTeaserIcon: { width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  chatTeaserTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 2px" },
+  chatTeaserText: { fontSize: 12.5, color: "rgba(255,255,255,0.85)", margin: 0 },
+  chatTeaserBtn: { background: "#fff", color: COLORS.mossDark, border: "none", borderRadius: 20, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter', sans-serif" },
   authBox: { maxWidth: 440, margin: "8px auto 0", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "24px 26px 26px", boxShadow: "0 1px 2px rgba(33,28,20,0.05), 0 8px 24px rgba(33,28,20,0.08)", position: "relative", zIndex: 2, transition: "box-shadow 0.3s ease, border-color 0.3s ease" },
   authBoxHighlight: { borderColor: COLORS.lime, boxShadow: `0 0 0 4px rgba(46,204,113,0.25), 0 8px 24px rgba(46,204,113,0.3)` },
   lightboxOverlayFallback: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 24 },
@@ -3832,6 +3874,7 @@ const styles = {
   profileTitle: { fontFamily: "'Inter', sans-serif", fontSize: 20, margin: "0 0 12px" },
   profileSectionTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 24, fontWeight: 700, margin: "0 0 12px", color: COLORS.lime, letterSpacing: "-0.01em" },
   profileForm: { display: "flex", flexDirection: "column", gap: 12 },
+  autoSaveStatus: { fontSize: 12, color: COLORS.muted, fontStyle: "italic" },
   wishRow: { display: "flex", gap: 8 },
   wishChipRow: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 },
   wishChip: { display: "inline-flex", alignItems: "center", gap: 6, background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 20, padding: "5px 6px 5px 12px", fontSize: 12.5, fontFamily: "'Inter', sans-serif", color: COLORS.ink },
