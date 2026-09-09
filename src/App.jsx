@@ -3540,7 +3540,7 @@ export default function App() {
 
           <div style={styles.boardMain}>
             {showForm && session && (
-              <form onSubmit={submitListing} style={styles.form}>
+              <form id="zettel-formular" onSubmit={submitListing} style={{ ...styles.form, scrollMarginTop: 14 }}>
             <div style={styles.typeToggleRow}>
               {LISTING_TYPES.map((t) => (
                 <button key={t.id} type="button"
@@ -3715,7 +3715,7 @@ export default function App() {
                     <h3 style={styles.emptyStateTitle}>Hier ist noch Platz für deinen Zettel</h3>
                     <p style={styles.emptyStateText}>Sei die erste Person, die hier etwas anbietet oder sucht.</p>
                     {session ? (
-                      <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { setShowForm(true); setTimeout(() => scrollToId("board-head"), 200); }}>+ Ersten Zettel aufhängen</button>
+                      <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { setShowForm(true); setTimeout(() => scrollToId("zettel-formular"), 200); }}>+ Ersten Zettel aufhängen</button>
                     ) : (
                       <p style={styles.emptyStateText}>Melde dich an, um loszulegen.</p>
                     )}
@@ -3811,7 +3811,7 @@ export default function App() {
             setPage("");
             window.location.hash = "";
             setShowForm(true);
-            setTimeout(() => scrollToId("board-head"), 220);
+            setTimeout(() => scrollToId("zettel-formular"), 220);
           }}>
           <PlusCircle size={30} strokeWidth={1.8} />
         </button>
