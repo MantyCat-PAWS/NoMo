@@ -4,7 +4,7 @@ import {
   Dumbbell, Baby, PawPrint, BookOpen, Gem, Package, Handshake,
   Tags, ArrowLeftRight, Gift, CheckCircle2, ShieldCheck, Share2, Search, Star,
   Home, PlusCircle, MessageCircle, User, Pencil, Bell, MapPin, UserPlus, ChevronRight, ListChecks,
-  ShieldAlert, MessagesSquare, HelpCircle, LogOut,
+  ShieldAlert, MessagesSquare, HelpCircle, LogOut, Camera, Heart,
 } from "lucide-react";
 
 import { supabase } from "./supabaseClient";
@@ -142,6 +142,14 @@ const CHAT_ROOMS = [
   { id: "garten_pflanzen", label: "Garten & Pflanzen", emoji: "🌱" },
   { id: "sonstiges", label: "Sonstiges", emoji: "💬" },
 ];
+const FEED_TOPICS = [
+  { id: "pflanzen", label: "Pflanzen", emoji: "🌱" },
+  { id: "essen", label: "Gekocht & Gebacken", emoji: "🍲" },
+  { id: "basteln", label: "Gebastelt & Gestrickt", emoji: "🧶" },
+  { id: "handwerk", label: "Handwerk", emoji: "🔨" },
+  { id: "sonstiges", label: "Sonstiges", emoji: "📷" },
+];
+const START_BONUS = 3;
 const CAT_ICON_MAP = {
   mode_beauty: Shirt,
   elektronik: Smartphone,
@@ -528,6 +536,9 @@ function VerificationSection({ profile, onSubmit, uploading, hideTitle }) {
       <div style={styles.verifyBox}>
         {!hideTitle && <h2 style={styles.profileSectionTitle}>Verifizierung</h2>}
         <p style={styles.legalP}>✓ Dein Konto ist mit Ausweis verifiziert. Danke fürs Vertrauen schaffen!</p>
+        {!profile.start_bonus_paid && (
+          <p style={styles.legalP}>🎁 Startbonus: Stell deinen ersten „Biete"-Zettel mit Foto ein und bekomm einmalig {START_BONUS} {CURRENCY} extra.</p>
+        )}
       </div>
     );
   }
@@ -537,6 +548,7 @@ function VerificationSection({ profile, onSubmit, uploading, hideTitle }) {
       <p style={styles.legalP}>
         Lade ein Foto deines Ausweises hoch (Vorderseite reicht), um dein Konto zu verifizieren. Das Bild sehen nur du und die Admin, es wird nach der Prüfung automatisch gelöscht, nur der Verifiziert-Status bleibt. Als Dankeschön gibt's 5 {CURRENCY}.
       </p>
+      <p style={styles.legalP}>🎁 Dazu kommt ein Startbonus von {START_BONUS} {CURRENCY}, sobald du nach der Verifizierung deinen ersten „Biete"-Zettel mit Foto eingestellt hast.</p>
       {status === "pending" && <p style={styles.verifyPending}>Anfrage wird geprüft…</p>}
       {status === "rejected" && <p style={styles.verifyRejected}>Die letzte Anfrage wurde abgelehnt. Du kannst es gerne nochmal versuchen.</p>}
       {status !== "pending" && (
@@ -1073,7 +1085,7 @@ function VerificationImage({ path }) {
   return <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumbLarge} onError={() => setLoadError("Die Bild-URL konnte nicht angezeigt werden.")} />;
 }
 
-function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, busyId }) {
+function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, onBlockFeedUser, onDeleteFeedPost, onDismissFeedReport, busyId }) {
   const [selectedId, setSelectedId] = useState(null);
   if (items.length === 0) return <div style={styles.inboxEmpty}>Keine offenen Meldungen.</div>;
   const selected = items.find((it) => it.id === selectedId);
@@ -1087,6 +1099,7 @@ function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, on
         <div style={styles.convHead}><b>{selected.title}</b></div>
         {selected.subtitle && <p style={styles.legalP}>{selected.subtitle}</p>}
         {selected.kind === "verification" && <VerificationImage path={r.verification_file_path} />}
+        {selected.kind === "feed" && r.post_image && <img src={r.post_image} alt="Gemeldetes Foto" style={{ maxWidth: "100%", maxHeight: 320, borderRadius: 10, objectFit: "contain" }} />}
         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
           {selected.kind === "rating" && (
             <>
@@ -1111,6 +1124,13 @@ function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, on
               <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onBlockChatUser(r); setSelectedId(null); }}>Nutzer sperren</button>
               <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onDeleteChatMessage(r); setSelectedId(null); }}>Chatnachricht löschen</button>
               <button style={styles.smallBtnGhost} disabled={busy} onClick={() => { onDismissChatReport(r); setSelectedId(null); }}>Meldung ignorieren</button>
+            </>
+          )}
+          {selected.kind === "feed" && (
+            <>
+              <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onBlockFeedUser(r); setSelectedId(null); }}>Nutzer sperren</button>
+              <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onDeleteFeedPost(r); setSelectedId(null); }}>Foto löschen</button>
+              <button style={styles.smallBtnGhost} disabled={busy} onClick={() => { onDismissFeedReport(r); setSelectedId(null); }}>Meldung ignorieren</button>
             </>
           )}
         </div>
@@ -1199,7 +1219,7 @@ function AdminUserRow({ p, everReported, onSendMessage, sending, onAdjustBalance
   );
 }
 
-function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
+function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, onBlockFeedUser, onDeleteFeedPost, onDismissFeedReport, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -1217,6 +1237,9 @@ function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing,
         onBlockChatUser={onBlockChatUser}
         onDeleteChatMessage={onDeleteChatMessage}
         onDismissChatReport={onDismissChatReport}
+        onBlockFeedUser={onBlockFeedUser}
+        onDeleteFeedPost={onDeleteFeedPost}
+        onDismissFeedReport={onDismissFeedReport}
         busyId={reportBusyId}
       />
 
@@ -1422,6 +1445,7 @@ function ProfilePage({ profile, onSaveProfile, profileSaving, activeListings, co
 
   const mobileLinks = [
     { id: "chat", label: "Plausch-Ecke", icon: MessagesSquare, color: "#3B93E0", href: "chat" },
+    { id: "feedlink", label: "Foto-Feed", icon: Camera, color: "#D65B9B", href: "feed" },
     ...(isAdmin ? [{ id: "adminlink", label: "Admin", icon: ShieldAlert, color: "#E0574C", href: "admin" }] : []),
     { id: "faqlink", label: "Häufige Fragen", icon: HelpCircle, color: "#8E8E93", href: "faq" },
   ];
@@ -1829,6 +1853,224 @@ function ChatPage({ session, isAdmin, profilesById, onReportMessage }) {
   );
 }
 
+function downscaleImage(file, maxSize = 1280, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const ratio = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Bild konnte nicht verarbeitet werden"))), "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Das Bild konnte nicht gelesen werden")); };
+    img.src = url;
+  });
+}
+
+function FeedPostCard({ post, author, session, isAdmin, likeCount, liked, comments, profilesById, onLike, onDelete, onComment, onDeleteComment, onReport }) {
+  const [showComments, setShowComments] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [reporting, setReporting] = useState(false);
+  const isMine = session && post.user_id === session.user.id;
+  const topic = FEED_TOPICS.find((t) => t.id === post.topic);
+  return (
+    <div style={styles.feedCard}>
+      <div style={styles.feedCardHead}>
+        {author?.avatar && avatarSrc(author.avatar) ? <img src={avatarSrc(author.avatar)} alt="" style={styles.avatarImgTiny} /> : null}
+        <a href={`#user-${post.user_id}`} style={author?.verified ? styles.ownerNameVerified : styles.ownerNameUnverified}>{author?.display_name || "?"}</a>
+        {author?.verified && <span style={styles.verifiedBadge} title="Ausweis verifiziert">✓</span>}
+        <span style={styles.chatMsgTime}>{relativeTime(post.created_at)}</span>
+        {topic && <span style={styles.feedTopicChip}>{topic.emoji} {topic.label}</span>}
+        {(isMine || isAdmin) && <button type="button" style={styles.chatMsgDelete} onClick={() => onDelete(post)} aria-label="Löschen">×</button>}
+      </div>
+      <img src={post.image_url} alt={post.caption || "Foto"} style={styles.feedImg} loading="lazy" />
+      <div style={styles.feedActions}>
+        <button type="button" style={{ ...styles.feedActionBtn, color: liked ? COLORS.rust : COLORS.muted }} onClick={() => onLike(post)}>
+          <Heart size={20} fill={liked ? COLORS.rust : "none"} strokeWidth={1.9} /> {likeCount > 0 ? likeCount : ""}
+        </button>
+        <button type="button" style={styles.feedActionBtn} onClick={() => setShowComments((v) => !v)}>
+          <MessageCircle size={20} strokeWidth={1.9} /> {comments.length > 0 ? comments.length : ""}
+        </button>
+        {session && !isMine && <button type="button" style={{ ...styles.chatMsgReport, marginLeft: "auto" }} onClick={() => setReporting((v) => !v)}>melden</button>}
+      </div>
+      {post.caption && <p style={styles.feedCaption}>{post.caption}</p>}
+      {reporting && <ChatReportForm message={post} onSubmit={async (m, reason, comment) => { await onReport(m, reason, comment); setReporting(false); }} onCancel={() => setReporting(false)} />}
+      {showComments && (
+        <div style={styles.feedComments}>
+          {comments.map((c) => (
+            <div key={c.id} style={styles.feedComment}>
+              <a href={`#user-${c.user_id}`} style={styles.ownerNameUnverified}><b>{profilesById[c.user_id]?.display_name || "?"}</b></a>{" "}
+              <span>{c.text}</span>
+              {session && (c.user_id === session.user.id || isAdmin) && (
+                <button type="button" style={styles.chatMsgDelete} onClick={() => onDeleteComment(c)} aria-label="Kommentar löschen">×</button>
+              )}
+            </div>
+          ))}
+          {session ? (
+            <form style={styles.convReplyRow} onSubmit={(e) => { e.preventDefault(); if (draft.trim()) { onComment(post, draft.trim()); setDraft(""); } }}>
+              <input className="mc-input" style={{ ...styles.input, flex: 1 }} value={draft} maxLength={300} onChange={(e) => setDraft(e.target.value)} placeholder="Kommentar schreiben…" />
+              <button type="submit" style={styles.smallBtn} disabled={!draft.trim()}>Senden</button>
+            </form>
+          ) : (
+            <p style={styles.legalP}>Melde dich an, um zu kommentieren.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedPage({ session, isAdmin, profilesById, onReportPost, onNeedLogin }) {
+  const [posts, setPosts] = useState([]);
+  const [likes, setLikes] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("alle");
+  const [composing, setComposing] = useState(false);
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [topic, setTopic] = useState("pflanzen");
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    const { data: ps } = await supabase.from("feed_posts").select("*").order("created_at", { ascending: false }).limit(60);
+    const list = ps || [];
+    setPosts(list);
+    if (list.length > 0) {
+      const ids = list.map((p) => p.id);
+      const [{ data: ls }, { data: cs }] = await Promise.all([
+        supabase.from("feed_likes").select("*").in("post_id", ids),
+        supabase.from("feed_comments").select("*").in("post_id", ids).order("created_at", { ascending: true }),
+      ]);
+      setLikes(ls || []);
+      setComments(cs || []);
+    } else { setLikes([]); setComments([]); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function pickFile(f) {
+    setFile(f || null);
+    setPreview(f ? URL.createObjectURL(f) : null);
+  }
+
+  async function publish(e) {
+    e.preventDefault();
+    if (!session || !file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const blob = await downscaleImage(file);
+      const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+      const { error: upErr } = await supabase.storage.from("feed-images").upload(path, blob, { contentType: "image/jpeg" });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("feed-images").getPublicUrl(path);
+      const { error: insErr } = await supabase.from("feed_posts").insert({
+        user_id: session.user.id, image_url: urlData.publicUrl, caption: caption.trim() || null, topic,
+      });
+      if (insErr) throw insErr;
+      setFile(null); setPreview(null); setCaption(""); setComposing(false);
+      await load();
+    } catch (err) {
+      setError("Foto konnte nicht veröffentlicht werden: " + (err.message || "unbekannter Fehler"));
+    } finally { setUploading(false); }
+  }
+
+  async function toggleLike(post) {
+    if (!session) { onNeedLogin(); return; }
+    const mine = likes.find((l) => l.post_id === post.id && l.user_id === session.user.id);
+    if (mine) {
+      setLikes((prev) => prev.filter((l) => !(l.post_id === post.id && l.user_id === session.user.id)));
+      await supabase.from("feed_likes").delete().eq("post_id", post.id).eq("user_id", session.user.id);
+    } else {
+      setLikes((prev) => [...prev, { post_id: post.id, user_id: session.user.id }]);
+      await supabase.from("feed_likes").insert({ post_id: post.id, user_id: session.user.id });
+    }
+  }
+
+  async function deletePost(post) {
+    if (!window.confirm("Dieses Foto wirklich löschen?")) return;
+    const marker = "/feed-images/";
+    const idx = post.image_url.indexOf(marker);
+    await supabase.from("feed_posts").delete().eq("id", post.id);
+    if (idx >= 0) await supabase.storage.from("feed-images").remove([post.image_url.slice(idx + marker.length)]);
+    setPosts((prev) => prev.filter((p) => p.id !== post.id));
+  }
+
+  async function addComment(post, text) {
+    const { data } = await supabase.from("feed_comments").insert({ post_id: post.id, user_id: session.user.id, text }).select().single();
+    if (data) setComments((prev) => [...prev, data]);
+  }
+
+  async function removeComment(c) {
+    await supabase.from("feed_comments").delete().eq("id", c.id);
+    setComments((prev) => prev.filter((x) => x.id !== c.id));
+  }
+
+  const visible = filter === "alle" ? posts : posts.filter((p) => p.topic === filter);
+
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+      <h1 style={styles.legalTitle}>Foto-Feed</h1>
+      <p style={styles.legalP}>Zeig, was du gepflanzt, gekocht, gebastelt oder gebaut hast — und lass dich von anderen inspirieren.</p>
+
+      {!composing ? (
+        <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => (session ? setComposing(true) : onNeedLogin())}>
+          <Camera size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} /> Foto teilen
+        </button>
+      ) : (
+        <form onSubmit={publish} style={styles.feedCompose}>
+          <input type="file" accept="image/*" className="mc-input" style={styles.input} onChange={(e) => pickFile(e.target.files[0])} />
+          {preview && <img src={preview} alt="Vorschau" style={styles.feedPreview} />}
+          <div style={styles.chatRoomTabs}>
+            {FEED_TOPICS.map((t) => (
+              <button type="button" key={t.id} className="mc-tab" onClick={() => setTopic(t.id)} style={{ ...styles.chatRoomTab, ...(topic === t.id ? styles.chatRoomTabActive : {}) }}>{t.emoji} {t.label}</button>
+            ))}
+          </div>
+          <textarea className="mc-input" style={{ ...styles.input, minHeight: 60, resize: "vertical" }} maxLength={300} value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Kurzer Text dazu (optional)" />
+          {error && <p style={styles.verifyRejected}>{error}</p>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="submit" className="mc-btn" style={styles.primaryBtn} disabled={!file || uploading}>{uploading ? "Wird hochgeladen…" : "Veröffentlichen"}</button>
+            <button type="button" style={styles.smallBtnGhostInk} onClick={() => { setComposing(false); pickFile(null); setError(null); }}>Abbrechen</button>
+          </div>
+          <p style={{ ...styles.legalP, fontSize: 12, color: COLORS.muted }}>Bitte nur eigene Fotos, die keine Personen ohne deren Zustimmung zeigen.</p>
+        </form>
+      )}
+
+      <div style={{ ...styles.chatRoomTabs, marginTop: 16 }}>
+        <button type="button" className="mc-tab" onClick={() => setFilter("alle")} style={{ ...styles.chatRoomTab, ...(filter === "alle" ? styles.chatRoomTabActive : {}) }}>Alle</button>
+        {FEED_TOPICS.map((t) => (
+          <button type="button" key={t.id} className="mc-tab" onClick={() => setFilter(t.id)} style={{ ...styles.chatRoomTab, ...(filter === t.id ? styles.chatRoomTabActive : {}) }}>{t.emoji} {t.label}</button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={styles.inboxEmpty}>Wird geladen…</div>
+      ) : visible.length === 0 ? (
+        <div style={styles.inboxEmpty}>Noch keine Fotos hier — sei die erste Person und teil eins! 📷</div>
+      ) : (
+        <div style={styles.feedList}>
+          {visible.map((post) => (
+            <FeedPostCard key={post.id} post={post} author={profilesById[post.user_id]} session={session} isAdmin={isAdmin} profilesById={profilesById}
+              likeCount={likes.filter((l) => l.post_id === post.id).length}
+              liked={!!session && likes.some((l) => l.post_id === post.id && l.user_id === session.user.id)}
+              comments={comments.filter((c) => c.post_id === post.id)}
+              onLike={toggleLike} onDelete={deletePost} onComment={addComment} onDeleteComment={removeComment} onReport={onReportPost} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UeberUnsPage() {
   return (
     <div style={styles.legalPage}>
@@ -1872,6 +2114,12 @@ function FaqPage({ session, onSendQuestion, sendingQuestion }) {
       </FaqItem>
       <FaqItem q="Was sind Chips und wie bekomme ich welche?">
         <p style={styles.legalP}>{CURRENCY} sind kein echtes Geld und lassen sich nicht kaufen oder in Euro umtauschen. Du bekommst sie ausschließlich gutgeschrieben, wenn jemand deine Anfrage für einen deiner Zettel annimmt (also wenn du selbst etwas anbietest und jemand es erfolgreich bei dir anfordert). Als Faustregel gilt beim Einstellen eines Zettels: 1 {CURRENCY_SINGULAR} ≈ 10 €.</p>
+      </FaqItem>
+      <FaqItem q="Gibt es einen Startbonus?">
+        <p style={styles.legalP}>Ja: Wenn dein Konto mit Ausweis verifiziert ist und du deinen ersten „Biete"-Zettel mit Foto eingestellt hast, bekommst du einmalig {START_BONUS} {CURRENCY} extra. Die Verifizierung selbst bringt zusätzlich 5 {CURRENCY}.</p>
+      </FaqItem>
+      <FaqItem q="Was ist der Foto-Feed?">
+        <p style={styles.legalP}>Im Foto-Feed teilst du Fotos von deinen Pflanzen, Gekochtem, Gebasteltem oder Handwerk. Andere können liken und kommentieren. Unpassende Fotos lassen sich über „melden" an die Admin schicken.</p>
       </FaqItem>
       <FaqItem q="Kann ich mit weniger Chips bieten, als verlangt wird?">
         <p style={styles.legalP}>Ja. Bei "Angebot machen" kannst du den vorgeschlagenen Betrag frei nach oben oder unten anpassen. Die anbietende Person sieht dann, dass es ein Verhandlungsangebot ist, und kann annehmen oder ablehnen.</p>
@@ -2048,6 +2296,7 @@ export default function App() {
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [listingReports, setListingReports] = useState([]);
   const [chatReports, setChatReports] = useState([]);
+  const [feedReports, setFeedReports] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [myAddress, setMyAddress] = useState("");
   const [pushBusy, setPushBusy] = useState(false);
@@ -2108,7 +2357,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [{ data: profs }, { data: lst }, { data: rts }, { data: offs }, { data: reps }, { data: preqs }, { data: chatReps }] = await Promise.all([
+      const [{ data: profs }, { data: lst }, { data: rts }, { data: offs }, { data: reps }, { data: preqs }, { data: chatReps }, { data: feedReps }] = await Promise.all([
         supabase.from("profiles").select("*"),
         supabase.from("listings").select("*").order("created_at", { ascending: false }),
         supabase.from("ratings").select("*"),
@@ -2116,6 +2365,7 @@ export default function App() {
         supabase.from("listing_reports").select("*"),
         supabase.from("purchase_requests").select("*"),
         supabase.from("chat_reports").select("*"),
+        supabase.from("feed_reports").select("*"),
       ]);
       const pMap = {};
       (profs || []).forEach((p) => { pMap[p.id] = p; });
@@ -2126,6 +2376,7 @@ export default function App() {
       setListingReports(reps || []);
       setPurchaseRequests(preqs || []);
       setChatReports(chatReps || []);
+      setFeedReports(feedReps || []);
     } catch (e) {
       setError("Daten konnten nicht geladen werden.");
     } finally {
@@ -2280,8 +2531,13 @@ export default function App() {
         subtitle: `gemeldet von ${profilesById[r.reported_by]?.display_name || "?"}, Grund: ${r.reason}${r.comment ? `: "${r.comment}"` : ""} — Nachricht: "${r.message_text}"`,
       };
     });
-    return [...a, ...b, ...c, ...d].sort((x, y) => (y.created_at || "").localeCompare(x.created_at || ""));
-  }, [openReports, openContentReports, pendingVerifications, chatReports, profilesById]);
+    const e = feedReports.filter((r) => !r.resolved).map((r) => ({
+      id: `feed-${r.id}`, kind: "feed", kindLabel: "Foto", raw: r, created_at: r.created_at,
+      title: `${profilesById[r.reported_user_id]?.display_name || "?"} — Foto im Feed`,
+      subtitle: `gemeldet von ${profilesById[r.reported_by]?.display_name || "?"}, Grund: ${r.reason}${r.comment ? `: "${r.comment}"` : ""}${r.post_caption ? ` — Text: "${r.post_caption}"` : ""}`,
+    }));
+    return [...a, ...b, ...c, ...d, ...e].sort((x, y) => (y.created_at || "").localeCompare(x.created_at || ""));
+  }, [openReports, openContentReports, pendingVerifications, chatReports, feedReports, profilesById]);
 
   const reportedUserIds = useMemo(() => {
     const s = new Set();
@@ -2942,6 +3198,57 @@ export default function App() {
     }
   }
 
+  async function submitFeedReport(post, reason, comment) {
+    if (!session) return;
+    setError(null);
+    try {
+      const { error: insErr } = await supabase.from("feed_reports").insert({
+        post_id: post.id, post_image: post.image_url, post_caption: post.caption || null,
+        reported_user_id: post.user_id, reported_by: session.user.id, reason, comment: comment || null,
+      });
+      if (insErr) throw insErr;
+      fetchAll();
+    } catch (e) {
+      setError("Meldung konnte nicht gesendet werden: " + (e?.message || "unbekannter Fehler"));
+    }
+  }
+
+  async function blockFeedReportedUser(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      const { error: rpcErr } = await supabase.rpc("admin_block_user", { target_id: report.reported_user_id });
+      if (rpcErr) throw rpcErr;
+      await supabase.from("feed_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Konnte Nutzer nicht sperren: " + (e?.message || "unbekannter Fehler"));
+    } finally { setReportActionId(null); }
+  }
+
+  async function deleteFeedReportedPost(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      if (report.post_id) await supabase.from("feed_posts").delete().eq("id", report.post_id);
+      await supabase.from("feed_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Foto konnte nicht gelöscht werden.");
+    } finally { setReportActionId(null); }
+  }
+
+  async function dismissFeedReport(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      await supabase.from("feed_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Meldung konnte nicht bearbeitet werden.");
+    } finally { setReportActionId(null); }
+  }
+
   async function removeReportedListing(report) {
     setReportActionId(report.id);
     setError(null);
@@ -3266,13 +3573,14 @@ export default function App() {
               <div className="mc-header-desktop-only" style={styles.headerActions}>
                 {isAdmin && (
                   <button style={styles.headerPillAlert} onClick={() => { window.location.hash = "admin"; }}>
-                    <ShieldAlert size={15} strokeWidth={2} /> Admin {(openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length})` : ""}
+                    <ShieldAlert size={15} strokeWidth={2} /> Admin {(openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length + feedReports.filter((r) => !r.resolved).length) > 0 ? `(${openReports.length + openContentReports.length + pendingVerifications.length + chatReports.filter((r) => !r.resolved).length + feedReports.filter((r) => !r.resolved).length})` : ""}
                   </button>
                 )}
                 <button style={styles.headerPill} onClick={() => { window.location.hash = "nachrichten"; }}>
                   <MessageCircle size={15} strokeWidth={2} /> Nachrichten {(unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length) > 0 ? `(${unreadCount + incomingOffers.length + incomingRequests.filter((r) => r.status === "offen").length})` : ""}
                 </button>
                 <button style={styles.headerPill} onClick={() => { window.location.hash = "chat"; }}><MessagesSquare size={15} strokeWidth={2} /> Chat</button>
+                <button style={styles.headerPill} onClick={() => { window.location.hash = "feed"; }}><Camera size={15} strokeWidth={2} /> Feed</button>
                 <button style={styles.headerPillGhost} onClick={() => { window.location.hash = "profil"; }}>
                   {profile?.avatar && avatarSrc(profile.avatar) ? <img src={avatarSrc(profile.avatar)} alt="" style={styles.avatarImgTiny} /> : <User size={15} strokeWidth={2} />}
                   {profile ? profile.display_name : "Profil"}{totalNewSearchMatches > 0 ? ` (${totalNewSearchMatches})` : ""}
@@ -3304,6 +3612,8 @@ export default function App() {
         <FaqPage session={session} onSendQuestion={sendQuestionToAdmin} sendingQuestion={sendingQuestion} />
       ) : page === "chat" ? (
         <ChatPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportMessage={submitChatReport} />
+      ) : page === "feed" ? (
+        <FeedPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportPost={submitFeedReport} onNeedLogin={promptLogin} />
       ) : page === "ueber-uns" ? (
         <UeberUnsPage />
       ) : page.startsWith("user-") ? (
@@ -3320,6 +3630,9 @@ export default function App() {
           onBlockChatUser={blockChatReportedUser}
           onDeleteChatMessage={deleteChatReportedMessage}
           onDismissChatReport={dismissChatReport}
+          onBlockFeedUser={blockFeedReportedUser}
+          onDeleteFeedPost={deleteFeedReportedPost}
+          onDismissFeedReport={dismissFeedReport}
           reportBusyId={reportActionId || verificationActionId}
           users={adminUsersSorted}
           reportedUserIds={reportedUserIds}
@@ -3367,9 +3680,12 @@ export default function App() {
         <div style={styles.chatTeaserIcon}><MessagesSquare size={22} strokeWidth={1.8} color="#fff" /></div>
         <div style={{ flex: 1 }}>
           <h3 style={styles.chatTeaserTitle}>Noch nichts Passendes dabei?</h3>
-          <p style={styles.chatTeaserText}>Quatsch in der Plausch-Ecke mit — Basteln, Kochen, Garten & mehr.</p>
+          <p style={styles.chatTeaserText}>Quatsch in der Plausch-Ecke mit oder teil Fotos von Pflanzen, Gekochtem & Gebasteltem im Foto-Feed.</p>
         </div>
-        <button type="button" style={styles.chatTeaserBtn} onClick={() => { window.location.hash = "chat"; }}>Zum Chat →</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" style={styles.chatTeaserBtn} onClick={() => { window.location.hash = "chat"; }}>Zum Chat →</button>
+          <button type="button" style={styles.chatTeaserBtn} onClick={() => { window.location.hash = "feed"; }}>📷 Foto-Feed →</button>
+        </div>
       </section>
 
       {SHOW_AD_BANNER && (
@@ -3967,6 +4283,18 @@ const styles = {
   chatRoomTabs: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   chatRoomTab: { fontFamily: "'Inter', sans-serif", fontSize: 13, padding: "8px 14px", border: `1.5px solid ${COLORS.lime}`, background: "transparent", color: COLORS.lime, cursor: "pointer", borderRadius: 20 },
   chatRoomTabActive: { background: COLORS.moss, color: "#fff", borderColor: COLORS.moss },
+  feedList: { display: "flex", flexDirection: "column", gap: 18, marginTop: 16 },
+  feedCard: { border: `1px solid ${COLORS.hairline}`, borderRadius: 14, background: COLORS.card, overflow: "hidden" },
+  feedCardHead: { display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", flexWrap: "wrap" },
+  feedTopicChip: { fontSize: 11.5, color: COLORS.muted, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "2px 8px" },
+  feedImg: { width: "100%", maxHeight: 560, objectFit: "cover", display: "block", background: COLORS.stone },
+  feedActions: { display: "flex", alignItems: "center", gap: 14, padding: "10px 14px 4px" },
+  feedActionBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 13, padding: 0 },
+  feedCaption: { margin: 0, padding: "4px 14px 12px", fontSize: 14, lineHeight: 1.45 },
+  feedComments: { padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 8, borderTop: `1px solid ${COLORS.hairline}` },
+  feedComment: { fontSize: 13.5, lineHeight: 1.4 },
+  feedCompose: { display: "flex", flexDirection: "column", gap: 12, border: `1px solid ${COLORS.hairline}`, borderRadius: 14, background: COLORS.card, padding: 16 },
+  feedPreview: { maxWidth: "100%", maxHeight: 300, objectFit: "contain", borderRadius: 10 },
   chatRoomBox: { border: `1px solid ${COLORS.hairline}`, borderRadius: 12, background: COLORS.card, padding: 16, display: "flex", flexDirection: "column", gap: 12 },
   chatFeed: { display: "flex", flexDirection: "column", gap: 12, maxHeight: 440, minHeight: 200, overflowY: "auto", padding: "4px 2px" },
   chatMsgRow: { display: "flex", gap: 8, alignItems: "flex-start" },
