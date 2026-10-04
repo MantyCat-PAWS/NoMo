@@ -1221,7 +1221,7 @@ function AdminUserRow({ p, everReported, onSendMessage, sending, onAdjustBalance
   );
 }
 
-function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, onBlockFeedUser, onDeleteFeedPost, onDeleteFeedComment, onDismissFeedReport, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
+function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, onBlockFeedUser, onDeleteFeedPost, onDeleteFeedComment, onDismissFeedReport, activity, profilesById, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -1245,6 +1245,9 @@ function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing,
         onDismissFeedReport={onDismissFeedReport}
         busyId={reportBusyId}
       />
+
+      <h2 style={{ ...styles.profileSectionTitle, marginTop: 32 }}>Live-Aktivität</h2>
+      <AdminActivityList activity={activity} profilesById={profilesById} />
 
       <h2 style={{ ...styles.profileSectionTitle, marginTop: 32 }}>Nutzer-Übersicht</h2>
       <div style={styles.convList}>
@@ -1746,6 +1749,16 @@ function ChatRoomView({ room, session, isAdmin, profilesById, onReportMessage })
   const [reportingId, setReportingId] = useState(null);
   const bottomRef = useRef(null);
 
+  const mentionSuggestions = useMemo(() => {
+    const m = draft.match(/@([^@\n]{0,30})$/);
+    if (!m || !session) return [];
+    const q = m[1].toLowerCase();
+    if (Object.values(profilesById).some((pr) => pr.display_name && pr.display_name.toLowerCase() === q.trim())) return [];
+    return Object.values(profilesById)
+      .filter((pr) => pr.id !== session.user.id && !pr.blocked && pr.display_name && pr.display_name.toLowerCase().startsWith(q))
+      .slice(0, 5);
+  }, [draft, profilesById, session]);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -1813,7 +1826,7 @@ function ChatRoomView({ room, session, isAdmin, profilesById, onReportMessage })
                       <button type="button" style={styles.chatMsgDelete} onClick={() => deleteMessage(m.id)} aria-label="Löschen">×</button>
                     )}
                   </div>
-                  <div style={styles.chatMsgText}>{m.text}</div>
+                  <div style={styles.chatMsgText}><MentionText text={m.text} profilesById={profilesById} /></div>
                   {reportingId === m.id && (
                     <ChatReportForm message={m} onSubmit={handleReportSubmit} onCancel={() => setReportingId(null)} />
                   )}
@@ -1824,10 +1837,17 @@ function ChatRoomView({ room, session, isAdmin, profilesById, onReportMessage })
         )}
         <div ref={bottomRef} />
       </div>
+      {session && mentionSuggestions.length > 0 && (
+        <div style={styles.mentionList}>
+          {mentionSuggestions.map((pr) => (
+            <button key={pr.id} type="button" style={styles.mentionOption} onClick={() => setDraft((d) => d.replace(/@([^@\n]{0,30})$/, `@${pr.display_name} `))}>@{pr.display_name}</button>
+          ))}
+        </div>
+      )}
       {session ? (
         <form onSubmit={sendMessage} style={styles.convReplyRow}>
           <input className="mc-input" style={{ ...styles.input, flex: 1 }} value={draft} maxLength={500}
-            onChange={(e) => setDraft(e.target.value)} placeholder={`Schreib was zu ${room.label}…`} />
+            onChange={(e) => setDraft(e.target.value)} placeholder={`Schreib was zu ${room.label}… (mit @Name erwähnen)`} />
           <button type="submit" style={styles.smallBtn} disabled={!draft.trim() || sending}>{sending ? "…" : "Senden"}</button>
         </form>
       ) : (
@@ -2079,6 +2099,90 @@ function FeedPage({ session, isAdmin, profilesById, onReportPost, onReportCommen
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function notificationText(n, profiles) {
+  const name = profiles?.[n.actor_id]?.display_name || "Jemand";
+  if (n.kind === "like") return `${name} hat dein Foto geliked`;
+  if (n.kind === "comment") return `${name} hat dein Foto kommentiert${n.snippet ? `: „${n.snippet}"` : ""}`;
+  const room = CHAT_ROOMS.find((r) => r.id === n.room);
+  return `${name} hat dich im Chat${room ? ` „${room.label}"` : ""} erwähnt${n.snippet ? `: „${n.snippet}"` : ""}`;
+}
+
+function activityText(a, profiles) {
+  const name = profiles?.[a.actor_id]?.display_name || "Jemand";
+  if (a.kind === "member") return `🆕 Neues Mitglied: ${a.text || name}`;
+  if (a.kind === "listing") return `📋 ${name} hat einen Zettel aufgehängt: ${a.text || ""}`;
+  if (a.kind === "chat") return `💬 ${name} im Chat: ${a.text || ""}`;
+  return `📷 ${name} hat ein Foto geteilt${a.text ? `: ${a.text}` : ""}`;
+}
+
+function MentionText({ text, profilesById }) {
+  const regex = useMemo(() => {
+    const names = Object.values(profilesById || {}).map((p) => p.display_name).filter(Boolean).sort((a, b) => b.length - a.length).slice(0, 400);
+    if (names.length === 0) return null;
+    const esc = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    try { return new RegExp(`@(${esc.join("|")})(?![\\p{L}\\p{N}])`, "giu"); } catch (e) { return null; }
+  }, [profilesById]);
+  if (!regex) return <>{text}</>;
+  const parts = [];
+  let last = 0;
+  for (const m of text.matchAll(regex)) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push(<span key={m.index} style={styles.mentionChip}>{m[0]}</span>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
+function NotificationsPage({ notifications, notifPosts, profilesById }) {
+  const [initialUnread] = useState(() => new Set(notifications.filter((n) => !n.read).map((n) => n.id)));
+  return (
+    <div style={styles.legalPage}>
+      <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
+      <h1 style={styles.legalTitle}>Benachrichtigungen</h1>
+      {notifications.length === 0 ? (
+        <div style={styles.emptyStateBox}>
+          <div style={styles.emptyStateIcon}><Heart size={30} strokeWidth={1.6} color={COLORS.lime} /></div>
+          <h3 style={styles.emptyStateTitle}>Noch nichts Neues</h3>
+          <p style={styles.emptyStateText}>Hier erscheinen Likes und Kommentare zu deinen Fotos sowie Erwähnungen im Chat.</p>
+        </div>
+      ) : (
+        <div style={styles.convList}>
+          {notifications.map((n) => {
+            const actor = profilesById[n.actor_id];
+            const thumb = n.post_id ? notifPosts[n.post_id] : null;
+            return (
+              <button key={n.id} type="button" onClick={() => { window.location.hash = n.kind === "mention" ? "chat" : "feed"; }}
+                style={{ ...styles.notifRow, ...(initialUnread.has(n.id) ? styles.notifRowUnread : {}) }}>
+                {actor?.avatar && avatarSrc(actor.avatar) ? <img src={avatarSrc(actor.avatar)} alt="" style={styles.notifAvatar} /> : <span style={styles.convAvatarFallbackBig}>{actor?.display_name?.[0]?.toUpperCase() || "?"}</span>}
+                <span style={{ flex: 1, textAlign: "left" }}>
+                  <span style={styles.notifText}>{notificationText(n, profilesById)}</span>
+                  <span style={styles.chatMsgTime}>{relativeTime(n.created_at)}</span>
+                </span>
+                {thumb && <img src={thumb} alt="" style={styles.notifThumb} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminActivityList({ activity, profilesById }) {
+  if (!activity || activity.length === 0) return <div style={styles.inboxEmpty}>Noch keine Aktivität aufgezeichnet.</div>;
+  return (
+    <div style={styles.convList}>
+      {activity.map((a) => (
+        <div key={a.id} style={styles.activityRow}>
+          <span style={{ flex: 1 }}>{activityText(a, profilesById)}</span>
+          <span style={styles.chatMsgTime}>{relativeTime(a.created_at)}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -2533,6 +2637,56 @@ export default function App() {
   }
 
   const isAdmin = session && ADMIN_EMAILS.includes(session.user.email);
+  const [notifications, setNotifications] = useState([]);
+  const [notifPosts, setNotifPosts] = useState({});
+  const [activity, setActivity] = useState([]);
+  const profilesRef = useRef({});
+  profilesRef.current = profilesById;
+  const unreadNotifs = notifications.filter((n) => !n.read).length;
+  const sessionUserId = session?.user?.id || null;
+  const isAdminFlag = !!isAdmin;
+
+  const loadPostThumbs = useCallback(async (ids) => {
+    const clean = [...new Set(ids.filter(Boolean))];
+    if (clean.length === 0) return;
+    const { data } = await supabase.from("feed_posts").select("id, image_url").in("id", clean);
+    if (data) setNotifPosts((prev) => ({ ...prev, ...Object.fromEntries(data.map((d) => [d.id, d.image_url])) }));
+  }, []);
+
+  useEffect(() => {
+    if (!sessionUserId) { setNotifications([]); return undefined; }
+    supabase.from("notifications").select("*").eq("user_id", sessionUserId).order("created_at", { ascending: false }).limit(50)
+      .then(({ data }) => { setNotifications(data || []); loadPostThumbs((data || []).map((n) => n.post_id)); });
+    const channel = supabase.channel(`notif-${sessionUserId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${sessionUserId}` }, (payload) => {
+        setNotifications((prev) => [payload.new, ...prev]);
+        loadPostThumbs([payload.new.post_id]);
+        showToast("❤️ " + notificationText(payload.new, profilesRef.current));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [sessionUserId, loadPostThumbs]);
+
+  useEffect(() => {
+    if (page !== "benachrichtigungen" || !sessionUserId || unreadNotifs === 0) return undefined;
+    const t = setTimeout(async () => {
+      await supabase.from("notifications").update({ read: true }).eq("user_id", sessionUserId).eq("read", false);
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [page, sessionUserId, unreadNotifs]);
+
+  useEffect(() => {
+    if (!isAdminFlag) { setActivity([]); return undefined; }
+    supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(60).then(({ data }) => setActivity(data || []));
+    const channel = supabase.channel("admin-activity")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_log" }, (payload) => {
+        setActivity((prev) => [payload.new, ...prev].slice(0, 60));
+        if (payload.new.actor_id !== sessionUserId) showToast(activityText(payload.new, profilesRef.current));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isAdminFlag, sessionUserId]);
   const openReports = useMemo(() => ratings.filter((r) => r.stars === 1 && !r.resolved), [ratings]);
   const openContentReports = useMemo(() => listingReports.filter((r) => !r.resolved), [listingReports]);
   const pendingVerifications = useMemo(() => Object.values(profilesById).filter((p) => p.verification_status === "pending"), [profilesById]);
@@ -3659,6 +3813,10 @@ export default function App() {
         <div style={styles.headerRight}>
           {session ? (
             <>
+              <button type="button" style={styles.heartBtn} onClick={() => { window.location.hash = "benachrichtigungen"; }} aria-label="Benachrichtigungen">
+                <Heart size={21} strokeWidth={1.9} fill={page === "benachrichtigungen" ? COLORS.ink : "none"} />
+                {unreadNotifs > 0 && <span style={styles.heartBadge}>{unreadNotifs > 9 ? "9+" : unreadNotifs}</span>}
+              </button>
               {profile && <span style={styles.balancePill}><PawCoin size={16} /> {profile.balance ?? "…"}</span>}
               <div className="mc-header-desktop-only" style={styles.headerActions}>
                 {isAdmin && (
@@ -3703,6 +3861,8 @@ export default function App() {
         <FaqPage session={session} onSendQuestion={sendQuestionToAdmin} sendingQuestion={sendingQuestion} />
       ) : page === "chat" ? (
         <ChatPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportMessage={submitChatReport} />
+      ) : page === "benachrichtigungen" && session ? (
+        <NotificationsPage notifications={notifications} notifPosts={notifPosts} profilesById={profilesById} />
       ) : page === "feed" ? (
         <FeedPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportPost={submitFeedReport} onReportComment={submitFeedCommentReport} onNeedLogin={promptLogin} />
       ) : page === "ueber-uns" ? (
@@ -3725,6 +3885,8 @@ export default function App() {
           onDeleteFeedPost={deleteFeedReportedPost}
           onDeleteFeedComment={deleteFeedReportedComment}
           onDismissFeedReport={dismissFeedReport}
+          activity={activity}
+          profilesById={profilesById}
           reportBusyId={reportActionId || verificationActionId}
           users={adminUsersSorted}
           reportedUserIds={reportedUserIds}
@@ -4388,6 +4550,17 @@ const styles = {
   feedComment: { fontSize: 13.5, lineHeight: 1.4 },
   feedCompose: { display: "flex", flexDirection: "column", gap: 12, border: `1px solid ${COLORS.hairline}`, borderRadius: 14, background: COLORS.card, padding: 16 },
   feedPreview: { maxWidth: "100%", maxHeight: 300, objectFit: "contain", borderRadius: 10 },
+  heartBtn: { position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, background: "none", border: "none", borderRadius: "50%", color: COLORS.ink, cursor: "pointer", padding: 0 },
+  heartBadge: { position: "absolute", top: -4, right: -6, minWidth: 17, height: 17, padding: "0 4px", borderRadius: 9, background: COLORS.rust, color: "#fff", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${COLORS.paper}`, boxSizing: "content-box" },
+  notifRow: { display: "flex", alignItems: "center", gap: 12, width: "100%", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer", color: COLORS.ink },
+  notifRowUnread: { borderColor: COLORS.lime, background: "rgba(46,204,113,0.08)" },
+  notifAvatar: { width: 42, height: 42, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
+  notifText: { display: "block", fontSize: 14, lineHeight: 1.4, marginBottom: 2 },
+  notifThumb: { width: 46, height: 46, borderRadius: 8, objectFit: "cover", flexShrink: 0 },
+  activityRow: { display: "flex", gap: 10, alignItems: "baseline", padding: "10px 14px", border: `1px solid ${COLORS.hairline}`, borderRadius: 10, background: COLORS.card, fontSize: 13.5, lineHeight: 1.4 },
+  mentionChip: { color: COLORS.lime, fontWeight: 600 },
+  mentionList: { display: "flex", flexWrap: "wrap", gap: 6 },
+  mentionOption: { background: COLORS.paper, border: `1px solid ${COLORS.lime}`, color: COLORS.lime, borderRadius: 16, padding: "5px 12px", fontSize: 13, cursor: "pointer" },
   chatRoomBox: { border: `1px solid ${COLORS.hairline}`, borderRadius: 12, background: COLORS.card, padding: 16, display: "flex", flexDirection: "column", gap: 12 },
   chatFeed: { display: "flex", flexDirection: "column", gap: 12, maxHeight: 440, minHeight: 200, overflowY: "auto", padding: "4px 2px" },
   chatMsgRow: { display: "flex", gap: 8, alignItems: "flex-start" },
