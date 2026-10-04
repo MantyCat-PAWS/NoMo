@@ -1085,7 +1085,7 @@ function VerificationImage({ path }) {
   return <img src={signedUrl} alt="Eingereichter Ausweis" style={styles.verifyThumbLarge} onError={() => setLoadError("Die Bild-URL konnte nicht angezeigt werden.")} />;
 }
 
-function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, onBlockFeedUser, onDeleteFeedPost, onDismissFeedReport, busyId }) {
+function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, onBlockFeedUser, onDeleteFeedPost, onDeleteFeedComment, onDismissFeedReport, busyId }) {
   const [selectedId, setSelectedId] = useState(null);
   if (items.length === 0) return <div style={styles.inboxEmpty}>Keine offenen Meldungen.</div>;
   const selected = items.find((it) => it.id === selectedId);
@@ -1129,7 +1129,9 @@ function ReportsInbox({ items, onDismissRating, onBlockUser, onRemoveListing, on
           {selected.kind === "feed" && (
             <>
               <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onBlockFeedUser(r); setSelectedId(null); }}>Nutzer sperren</button>
-              <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onDeleteFeedPost(r); setSelectedId(null); }}>Foto löschen</button>
+              {r.comment_id || r.comment_text
+                ? <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onDeleteFeedComment(r); setSelectedId(null); }}>Kommentar löschen</button>
+                : <button style={styles.smallBtnRust} disabled={busy} onClick={() => { onDeleteFeedPost(r); setSelectedId(null); }}>Foto löschen</button>}
               <button style={styles.smallBtnGhost} disabled={busy} onClick={() => { onDismissFeedReport(r); setSelectedId(null); }}>Meldung ignorieren</button>
             </>
           )}
@@ -1219,7 +1221,7 @@ function AdminUserRow({ p, everReported, onSendMessage, sending, onAdjustBalance
   );
 }
 
-function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, onBlockFeedUser, onDeleteFeedPost, onDismissFeedReport, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
+function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing, onDismissContent, onApproveVerification, onRejectVerification, onBlockChatUser, onDeleteChatMessage, onDismissChatReport, onBlockFeedUser, onDeleteFeedPost, onDeleteFeedComment, onDismissFeedReport, reportBusyId, users, reportedUserIds, onSendMessage, messageSendingId, onAdjustBalance, balanceAdjustingId, topSearchTerms, topListingWords }) {
   return (
     <div style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
@@ -1239,6 +1241,7 @@ function AdminPage({ reportItems, onDismissRating, onBlockUser, onRemoveListing,
         onDismissChatReport={onDismissChatReport}
         onBlockFeedUser={onBlockFeedUser}
         onDeleteFeedPost={onDeleteFeedPost}
+        onDeleteFeedComment={onDeleteFeedComment}
         onDismissFeedReport={onDismissFeedReport}
         busyId={reportBusyId}
       />
@@ -1871,7 +1874,8 @@ function downscaleImage(file, maxSize = 1280, quality = 0.82) {
   });
 }
 
-function FeedPostCard({ post, author, session, isAdmin, likeCount, liked, comments, profilesById, onLike, onDelete, onComment, onDeleteComment, onReport }) {
+function FeedPostCard({ post, author, session, isAdmin, likeCount, liked, comments, profilesById, onLike, onDelete, onComment, onDeleteComment, onReport, onReportComment }) {
+  const [reportingCommentId, setReportingCommentId] = useState(null);
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
   const [reporting, setReporting] = useState(false);
@@ -1905,8 +1909,14 @@ function FeedPostCard({ post, author, session, isAdmin, likeCount, liked, commen
             <div key={c.id} style={styles.feedComment}>
               <a href={`#user-${c.user_id}`} style={styles.ownerNameUnverified}><b>{profilesById[c.user_id]?.display_name || "?"}</b></a>{" "}
               <span>{c.text}</span>
+              {session && c.user_id !== session.user.id && (
+                <button type="button" style={{ ...styles.chatMsgReport, marginLeft: 8 }} onClick={() => setReportingCommentId(reportingCommentId === c.id ? null : c.id)}>melden</button>
+              )}
               {session && (c.user_id === session.user.id || isAdmin) && (
-                <button type="button" style={styles.chatMsgDelete} onClick={() => onDeleteComment(c)} aria-label="Kommentar löschen">×</button>
+                <button type="button" style={{ ...styles.chatMsgDelete, marginLeft: 8 }} onClick={() => onDeleteComment(c)} aria-label="Kommentar löschen">×</button>
+              )}
+              {reportingCommentId === c.id && (
+                <ChatReportForm message={c} onSubmit={async (m, reason, comment) => { await onReportComment(m, reason, comment); setReportingCommentId(null); }} onCancel={() => setReportingCommentId(null)} />
               )}
             </div>
           ))}
@@ -1924,7 +1934,7 @@ function FeedPostCard({ post, author, session, isAdmin, likeCount, liked, commen
   );
 }
 
-function FeedPage({ session, isAdmin, profilesById, onReportPost, onNeedLogin }) {
+function FeedPage({ session, isAdmin, profilesById, onReportPost, onReportComment, onNeedLogin }) {
   const [posts, setPosts] = useState([]);
   const [likes, setLikes] = useState([]);
   const [comments, setComments] = useState([]);
@@ -2063,7 +2073,7 @@ function FeedPage({ session, isAdmin, profilesById, onReportPost, onNeedLogin })
               likeCount={likes.filter((l) => l.post_id === post.id).length}
               liked={!!session && likes.some((l) => l.post_id === post.id && l.user_id === session.user.id)}
               comments={comments.filter((c) => c.post_id === post.id)}
-              onLike={toggleLike} onDelete={deletePost} onComment={addComment} onDeleteComment={removeComment} onReport={onReportPost} />
+              onLike={toggleLike} onDelete={deletePost} onComment={addComment} onDeleteComment={removeComment} onReport={onReportPost} onReportComment={onReportComment} />
           ))}
         </div>
       )}
@@ -2533,8 +2543,8 @@ export default function App() {
     });
     const e = feedReports.filter((r) => !r.resolved).map((r) => ({
       id: `feed-${r.id}`, kind: "feed", kindLabel: "Foto", raw: r, created_at: r.created_at,
-      title: `${profilesById[r.reported_user_id]?.display_name || "?"} — Foto im Feed`,
-      subtitle: `gemeldet von ${profilesById[r.reported_by]?.display_name || "?"}, Grund: ${r.reason}${r.comment ? `: "${r.comment}"` : ""}${r.post_caption ? ` — Text: "${r.post_caption}"` : ""}`,
+      title: `${profilesById[r.reported_user_id]?.display_name || "?"} — ${r.comment_text ? "Kommentar" : "Foto"} im Feed`,
+      subtitle: `gemeldet von ${profilesById[r.reported_by]?.display_name || "?"}, Grund: ${r.reason}${r.comment ? `: "${r.comment}"` : ""}${r.comment_text ? ` — Kommentar: "${r.comment_text}"` : r.post_caption ? ` — Text: "${r.post_caption}"` : ""}`,
     }));
     return [...a, ...b, ...c, ...d, ...e].sort((x, y) => (y.created_at || "").localeCompare(x.created_at || ""));
   }, [openReports, openContentReports, pendingVerifications, chatReports, feedReports, profilesById]);
@@ -3213,6 +3223,33 @@ export default function App() {
     }
   }
 
+  async function submitFeedCommentReport(c, reason, comment) {
+    if (!session) return;
+    setError(null);
+    try {
+      const { error: insErr } = await supabase.from("feed_reports").insert({
+        post_id: c.post_id, comment_id: c.id, comment_text: c.text,
+        reported_user_id: c.user_id, reported_by: session.user.id, reason, comment: comment || null,
+      });
+      if (insErr) throw insErr;
+      fetchAll();
+    } catch (e) {
+      setError("Meldung konnte nicht gesendet werden: " + (e?.message || "unbekannter Fehler"));
+    }
+  }
+
+  async function deleteFeedReportedComment(report) {
+    setReportActionId(report.id);
+    setError(null);
+    try {
+      if (report.comment_id) await supabase.from("feed_comments").delete().eq("id", report.comment_id);
+      await supabase.from("feed_reports").update({ resolved: true }).eq("id", report.id);
+      fetchAll();
+    } catch (e) {
+      setError("Kommentar konnte nicht gelöscht werden.");
+    } finally { setReportActionId(null); }
+  }
+
   async function blockFeedReportedUser(report) {
     setReportActionId(report.id);
     setError(null);
@@ -3613,7 +3650,7 @@ export default function App() {
       ) : page === "chat" ? (
         <ChatPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportMessage={submitChatReport} />
       ) : page === "feed" ? (
-        <FeedPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportPost={submitFeedReport} onNeedLogin={promptLogin} />
+        <FeedPage session={session} isAdmin={isAdmin} profilesById={profilesById} onReportPost={submitFeedReport} onReportComment={submitFeedCommentReport} onNeedLogin={promptLogin} />
       ) : page === "ueber-uns" ? (
         <UeberUnsPage />
       ) : page.startsWith("user-") ? (
@@ -3632,6 +3669,7 @@ export default function App() {
           onDismissChatReport={dismissChatReport}
           onBlockFeedUser={blockFeedReportedUser}
           onDeleteFeedPost={deleteFeedReportedPost}
+          onDeleteFeedComment={deleteFeedReportedComment}
           onDismissFeedReport={dismissFeedReport}
           reportBusyId={reportActionId || verificationActionId}
           users={adminUsersSorted}
