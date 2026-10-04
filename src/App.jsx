@@ -388,8 +388,6 @@ function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDele
   const [activeImg, setActiveImg] = useState(0);
   return (
     <div style={{ ...styles.ticket, opacity: item.status === "vergeben" ? 0.55 : 1 }}>
-      <div style={styles.pinShadow} />
-      <div style={styles.pin} />
       {!isMine && (
         <button style={styles.favoriteBtn} onClick={() => onToggleFavorite(item)} disabled={favoriteBusy} aria-label="Merken">
           {isFavorited ? "♥" : "♡"}
@@ -409,25 +407,10 @@ function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDele
         </div>
       ) : (
         <div style={styles.ticketImagePlaceholder}>
-          <CatIcon id={item.category} size={36} style={{ color: COLORS.hairline }} />
+          <CatIcon id={item.category} size={40} style={{ color: COLORS.muted, opacity: 0.6 }} />
         </div>
       )}
-      <div style={styles.badgeRow}>
-        <span style={styles.catBadge}><CatIcon id={item.category} style={{ color: COLORS.lime }} /> {info.label}</span>
-        {info.physical && (
-          <span style={item.ships === false ? styles.pickupBadge : styles.shipBadge}>
-            {item.ships === false ? "Nur Abholung" : "Versand möglich"}
-          </span>
-        )}
-        {isSuche && <span style={styles.searchBadge}>GESUCHT</span>}
-        {item.condition && (
-          <span style={item.condition === "beschaedigt" ? styles.conditionBadgeWarn : styles.conditionBadge}>{CONDITION_LABEL[item.condition]}</span>
-        )}
-        {item.seller_type === "unternehmer" && <span style={styles.bizBadge}>Unternehmer:in</span>}
-        {item.status === "vergeben" && <span style={styles.soldBadge}>VERGEBEN</span>}
-      </div>
-      <h3 style={styles.ticketTitle}>{item.title}</h3>
-      <p style={styles.ticketDesc}>{item.description}</p>
+      <div style={styles.ticketBody}>
       {isSuche ? (
         item.max_offer_paws > 0 && (
           <div style={styles.priceRow}>
@@ -455,6 +438,22 @@ function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDele
           )}
         </>
       )}
+      <h3 style={styles.ticketTitle}>{item.title}</h3>
+      <p style={styles.ticketDesc}>{item.description}</p>
+      <div style={styles.badgeRow}>
+        <span style={styles.catBadge}><CatIcon id={item.category} style={{ color: COLORS.lime }} /> {info.label}</span>
+        {info.physical && (
+          <span style={item.ships === false ? styles.pickupBadge : styles.shipBadge}>
+            {item.ships === false ? "Nur Abholung" : "Versand möglich"}
+          </span>
+        )}
+        {isSuche && <span style={styles.searchBadge}>GESUCHT</span>}
+        {item.condition && (
+          <span style={item.condition === "beschaedigt" ? styles.conditionBadgeWarn : styles.conditionBadge}>{CONDITION_LABEL[item.condition]}</span>
+        )}
+        {item.seller_type === "unternehmer" && <span style={styles.bizBadge}>Unternehmer:in</span>}
+        {item.status === "vergeben" && <span style={styles.soldBadge}>VERGEBEN</span>}
+      </div>
       {isMine && item.status !== "vergeben" && (
         <button style={styles.deleteLink} onClick={() => onDelete(item.id)}>Zettel abhängen</button>
       )}
@@ -523,6 +522,7 @@ function TicketCard({ item, ownerRatingSummary, isMine, alreadyRequested, onDele
             <Share2 size={13} strokeWidth={2} />
           </button>
         </span>
+      </div>
       </div>
     </div>
   );
@@ -2027,7 +2027,7 @@ function FeedPage({ session, isAdmin, profilesById, onReportPost, onReportCommen
   const visible = filter === "alle" ? posts : posts.filter((p) => p.topic === filter);
 
   return (
-    <div style={styles.legalPage}>
+    <div className="mc-feed-wide" style={styles.legalPage}>
       <a href="#" style={styles.legalBack}>← Zurück zur Startseite</a>
       <h1 style={styles.legalTitle}>Foto-Feed</h1>
       <p style={styles.legalP}>Zeig, was du gepflanzt, gekocht, gebastelt oder gebaut hast — und lass dich von anderen inspirieren.</p>
@@ -2063,11 +2063,13 @@ function FeedPage({ session, isAdmin, profilesById, onReportPost, onReportCommen
       </div>
 
       {loading ? (
-        <div style={styles.inboxEmpty}>Wird geladen…</div>
+        <div className="mc-feed-list">
+          {[0, 1].map((i) => <div key={i} className="mc-shimmer" style={{ height: 340, borderRadius: 14 }} />)}
+        </div>
       ) : visible.length === 0 ? (
         <div style={styles.inboxEmpty}>Noch keine Fotos hier — sei die erste Person und teil eins! 📷</div>
       ) : (
-        <div style={styles.feedList}>
+        <div className="mc-feed-list">
           {visible.map((post) => (
             <FeedPostCard key={post.id} post={post} author={profilesById[post.user_id]} session={session} isAdmin={isAdmin} profilesById={profilesById}
               likeCount={likes.filter((l) => l.post_id === post.id).length}
@@ -2248,6 +2250,18 @@ export default function App() {
   const [authMode, setAuthMode] = useState("login");
   const [showForgotForm, setShowForgotForm] = useState(false);
   const [authHighlight, setAuthHighlight] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    try { return !window.localStorage.getItem("nc_welcome_seen"); } catch (e) { return false; }
+  });
+  function showToast(text) {
+    setToast(text);
+    setTimeout(() => setToast((t) => (t === text ? null : t)), 4500);
+  }
+  function closeWelcome() {
+    setShowWelcome(false);
+    try { window.localStorage.setItem("nc_welcome_seen", "1"); } catch (e) {}
+  }
 
   // Springt zuverlässig zu einem Element, egal wie hoch der feste Header gerade
   // tatsächlich ist (Notch/Dynamic Island unterscheiden sich je Gerät) — misst
@@ -2342,6 +2356,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  useEffect(() => {
+    if (!error) return undefined;
+    const t = setTimeout(() => setError(null), 7000);
+    return () => clearTimeout(t);
+  }, [error]);
   const [form, setForm] = useState({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true, condition: "" });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
@@ -2915,6 +2934,7 @@ export default function App() {
           listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
         }).eq("id", editingListingId);
         if (updErr) throw updErr;
+        showToast("Änderungen gespeichert ✓");
       } else {
         const code = String(listings.length + 1).padStart(4, "0");
         const { error: insErr } = await supabase.from("listings").insert({
@@ -2924,6 +2944,11 @@ export default function App() {
           listing_type: form.listingType, ships: catInfo(form.category).physical ? form.ships : true, ...extra,
         });
         if (insErr) throw insErr;
+        const wasPaid = !!profile?.start_bonus_paid;
+        const { data: freshProfile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+        if (freshProfile) setProfile(freshProfile);
+        if (freshProfile && !wasPaid && freshProfile.start_bonus_paid) showToast(`🎁 Startbonus: +${START_BONUS} ${CURRENCY} sind da!`);
+        else showToast("Zettel aufgehängt ✓");
       }
 
       setForm({ title: "", category: "sonstiges", description: "", priceEuro: "", pawsPerHour: "", shippingEuro: "", location: "Traun", region: "oberoesterreich", district: "", sellerType: "privat", listingType: "biete", maxOfferPaws: "", ships: true, condition: "" });
@@ -3561,6 +3586,23 @@ export default function App() {
           </div>
         </div>
       )}
+      {toast && !error && <div style={styles.toastBox} role="status">{toast}</div>}
+      {showWelcome && !session && page === "" && (
+        <div style={styles.welcomeOverlay} onClick={closeWelcome}>
+          <div style={styles.welcomeCard} onClick={(e) => e.stopPropagation()}>
+            <h2 style={styles.welcomeTitle}>Willkommen beim NoCashClub 👋</h2>
+            <p style={{ ...styles.legalP, margin: "0 0 6px" }}>Tauschen statt kaufen, in drei einfachen Schritten:</p>
+            <div style={styles.welcomeStep}><span style={styles.welcomeNum}>1</span><span><b>Konto anlegen</b> und dich per Ausweis verifizieren.</span></div>
+            <div style={styles.welcomeStep}><span style={styles.welcomeNum}>2</span><span><b>Ersten Zettel mit Foto</b> aufhängen, etwas anbieten oder suchen.</span></div>
+            <div style={styles.welcomeStep}><span style={styles.welcomeNum}>3</span><span><b>Tauschen oder anfragen</b> und dich über neue Sachen freuen.</span></div>
+            <div style={styles.welcomeBonus}>🎁 <b>Startgeschenk: 8 {CURRENCY}</b>: 5 für die Verifizierung und {START_BONUS} für deinen ersten Zettel mit Foto.</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" className="mc-btn" style={styles.primaryBtn} onClick={() => { closeWelcome(); setAuthMode("register"); promptLogin(); }}>Konto anlegen</button>
+              <button type="button" style={styles.smallBtnGhostInk} onClick={closeWelcome}>Erst mal umschauen</button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         * { box-sizing: border-box; }
         body { margin: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; padding-bottom: env(safe-area-inset-bottom); }
@@ -3568,6 +3610,17 @@ export default function App() {
         ::selection { background: ${COLORS.lime}; color: ${COLORS.ink}; }
         .mc-btn { transition: transform .15s ease, box-shadow .15s ease; }
         .mc-btn:hover { transform: translateY(-2px); }
+        @keyframes mc-toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes mc-pop-in { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
+        .mc-fade { animation: mc-fade-in .28s ease both; }
+        @keyframes mc-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        .mc-feed-list { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; align-items: start; }
+        @media (min-width: 900px) { .mc-feed-list { grid-template-columns: 1fr 1fr; } .mc-feed-wide { max-width: 1000px !important; } }
+        @media (max-width: 820px) {
+          .mc-cat-scroll { flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto; gap: 8px !important; padding-bottom: 6px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+          .mc-cat-scroll::-webkit-scrollbar { display: none; }
+          .mc-cat-scroll button { white-space: nowrap; flex-shrink: 0; border: 1px solid ${COLORS.hairline} !important; border-radius: 20px !important; padding: 7px 14px !important; }
+        }
         .mc-shimmer { position: relative; overflow: hidden; background: ${COLORS.stone}; }
         .mc-shimmer::after {
           content: ""; position: absolute; inset: 0;
@@ -3584,7 +3637,7 @@ export default function App() {
           filter: invert(64%) sepia(51%) saturate(438%) hue-rotate(93deg) brightness(92%) contrast(92%);
           opacity: 1;
         }
-        @media (prefers-reduced-motion: reduce) { .mc-btn, .mc-ticket { transition: none !important; } .mc-btn:hover, .mc-ticket:hover { transform: none !important; } }
+        @media (prefers-reduced-motion: reduce) { .mc-fade { animation: none !important; } .mc-btn, .mc-ticket { transition: none !important; } .mc-btn:hover, .mc-ticket:hover { transform: none !important; } }
         .mc-bottom-nav { display: none; }
         .mc-header-desktop-only { display: flex; }
         @media (max-width: 720px) {
@@ -3635,6 +3688,7 @@ export default function App() {
         </div>
       </header>
 
+      <div key={page || "home"} className="mc-fade">
       {page === "nachrichten" && session ? (
         <MessagesPage
           conversations={myConversations} userId={session.user.id} replyDrafts={replyDrafts} onDraftChange={updateReplyDraft} onReply={sendReply} replySendingKey={replySendingKey}
@@ -3792,8 +3846,8 @@ export default function App() {
       )}
 
       {error && (
-        <div style={styles.errorBar}>
-          {error}
+        <div style={styles.errorBar} role="alert">
+          <span>{error}</span>
           <button style={styles.errorClose} onClick={() => setError(null)}>×</button>
         </div>
       )}
@@ -3850,7 +3904,7 @@ export default function App() {
 
             <div style={styles.sidebarBlock}>
               <div style={styles.filterLabel}>Kategorie</div>
-              <div style={styles.sidebarTabsCol}>
+              <div className="mc-cat-scroll" style={styles.sidebarTabsCol}>
                 {["alle", ...CATS.map((c) => c.id)].map((f) => (
                   <button key={f} className="mc-tab" onClick={() => setCatFilter(f)} style={{ ...styles.sidebarTab, ...(catFilter === f ? styles.sidebarTabActive : {}) }}>{f === "alle" ? "Alle" : <><CatIcon id={f} /> {catInfo(f).label}</>}</button>
                 ))}
@@ -4129,6 +4183,7 @@ export default function App() {
       </section>
       </>
       )}
+      </div>
 
       <footer style={styles.footer}>
         <div>NoCashClub, ein Tauschbrett aus Traun. {CURRENCY} sind eine reine Verrechnungswährung ohne echten Geldwert.</div>
@@ -4325,7 +4380,7 @@ const styles = {
   feedCard: { border: `1px solid ${COLORS.hairline}`, borderRadius: 14, background: COLORS.card, overflow: "hidden" },
   feedCardHead: { display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", flexWrap: "wrap" },
   feedTopicChip: { fontSize: 11.5, color: COLORS.muted, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: "2px 8px" },
-  feedImg: { width: "100%", maxHeight: 560, objectFit: "cover", display: "block", background: COLORS.stone },
+  feedImg: { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", display: "block", background: COLORS.stone },
   feedActions: { display: "flex", alignItems: "center", gap: 14, padding: "10px 14px 4px" },
   feedActionBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 13, padding: 0 },
   feedCaption: { margin: 0, padding: "4px 14px 12px", fontSize: 14, lineHeight: 1.45 },
@@ -4343,7 +4398,14 @@ const styles = {
   chatMsgReport: { background: "none", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 11.5, textDecoration: "underline", padding: 0, marginLeft: "auto" },
   chatReportBox: { border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: 10, marginTop: 8, background: COLORS.paper },
   addressInsertBtn: { marginTop: 8, background: "none", border: `1px solid ${COLORS.hairline}`, color: COLORS.muted, borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  errorBar: { maxWidth: 700, margin: "20px auto 0", background: "rgba(224,91,76,0.12)", border: `1px solid ${COLORS.rust}`, color: "#FF9484", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 },
+  errorBar: { position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(92px + env(safe-area-inset-bottom))", width: "min(92vw, 520px)", zIndex: 90, background: "#2b1a18", border: `1px solid ${COLORS.rust}`, color: "#FF9484", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, fontSize: 14, boxShadow: "0 12px 32px rgba(0,0,0,0.5)", animation: "mc-toast-in .25s ease both" },
+  toastBox: { position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(92px + env(safe-area-inset-bottom))", width: "min(92vw, 420px)", zIndex: 90, background: `linear-gradient(135deg, ${COLORS.moss}, ${COLORS.mossDark})`, color: "#fff", borderRadius: 12, padding: "12px 16px", fontSize: 14, fontWeight: 600, textAlign: "center", boxShadow: "0 12px 32px rgba(0,0,0,0.5)", animation: "mc-toast-in .25s ease both" },
+  welcomeOverlay: { position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
+  welcomeCard: { width: "min(94vw, 460px)", maxHeight: "90vh", overflowY: "auto", background: COLORS.card, border: `1px solid ${COLORS.hairline}`, borderRadius: 18, padding: "28px 24px 22px", boxShadow: "0 24px 60px rgba(0,0,0,0.6)", animation: "mc-pop-in .3s ease both" },
+  welcomeTitle: { fontFamily: "'Fredoka', sans-serif", fontSize: 24, fontWeight: 700, margin: "0 0 6px", color: COLORS.ink },
+  welcomeStep: { display: "flex", gap: 12, alignItems: "flex-start", margin: "14px 0" },
+  welcomeNum: { width: 28, height: 28, borderRadius: "50%", background: COLORS.lime, color: "#fff", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  welcomeBonus: { background: "rgba(46,204,113,0.12)", border: `1px solid ${COLORS.lime}`, borderRadius: 12, padding: "10px 14px", fontSize: 13.5, margin: "16px 0" },
   errorClose: { background: "none", border: "none", color: "#FF9484", fontSize: 18, cursor: "pointer", lineHeight: 1 },
   adminBox: { maxWidth: 700, margin: "24px auto 0", background: "#FCE9E1", border: `2px solid ${COLORS.rust}`, borderRadius: 8, padding: "16px 18px" },
   adminTitle: { fontFamily: "'Inter', sans-serif", fontSize: 18, margin: "0 0 10px", color: COLORS.rust },
@@ -4407,13 +4469,14 @@ const styles = {
   skeletonLineWide: { width: "80%", height: 14, borderRadius: 4 },
   skeletonLineNarrow: { width: "50%", height: 12, borderRadius: 4 },
   skeletonPill: { width: 70, height: 22, borderRadius: 12, marginTop: 6 },
-  ticket: { position: "relative", display: "flex", flexDirection: "column", background: `linear-gradient(175deg, #26292a 0%, ${COLORS.card} 40%)`, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, overflow: "visible", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.2), 0 10px 24px rgba(0,0,0,0.22)", height: "100%", padding: "26px 20px 18px" },
-  ticketImage: { width: "100%", height: 172, objectFit: "cover", borderRadius: 8, marginBottom: 12, display: "block" },
-  ticketImagePlaceholder: { width: "100%", height: 172, borderRadius: 8, marginBottom: 12, background: COLORS.paper, border: `1px dashed ${COLORS.hairline}`, display: "flex", alignItems: "center", justifyContent: "center" },
+  ticket: { position: "relative", display: "flex", flexDirection: "column", background: `linear-gradient(175deg, #26292a 0%, ${COLORS.card} 40%)`, border: `1px solid ${COLORS.hairline}`, borderRadius: 12, overflow: "hidden", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.2), 0 10px 24px rgba(0,0,0,0.22)", height: "100%", padding: 0 },
+  ticketBody: { display: "flex", flexDirection: "column", flex: 1, padding: "14px 18px 16px" },
+  ticketImage: { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 0, display: "block", background: COLORS.stone },
+  ticketImagePlaceholder: { width: "100%", aspectRatio: "4 / 3", background: `linear-gradient(135deg, ${COLORS.paper}, ${COLORS.stone})`, display: "flex", alignItems: "center", justifyContent: "center" },
   pinShadow: { position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 14, height: 5, borderRadius: "50%", background: "rgba(0,0,0,0.28)", filter: "blur(2px)" },
   pin: { position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 11, height: 11, borderRadius: "50%", background: "linear-gradient(145deg, #EAECE9, #9AA39C)", border: "1px solid rgba(0,0,0,0.15)", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" },
-  favoriteBtn: { position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.35)", border: `1px solid ${COLORS.hairline}`, borderRadius: "50%", width: 30, height: 30, fontSize: 16, color: COLORS.rust, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
-  galleryThumbRow: { display: "flex", gap: 6, marginTop: 6, marginBottom: 4 },
+  favoriteBtn: { position: "absolute", top: 10, right: 10, zIndex: 2, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: "50%", width: 34, height: 34, fontSize: 16, color: COLORS.rust, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
+  galleryThumbRow: { display: "flex", gap: 6, padding: "8px 18px 0" },
   galleryThumb: { width: 36, height: 36, objectFit: "cover", borderRadius: 3, border: `1.5px solid ${COLORS.stone}`, cursor: "pointer", opacity: 0.7 },
   galleryThumbActive: { borderColor: COLORS.ink, opacity: 1 },
   ticketFooter: { marginTop: "auto", paddingTop: 12, borderTop: `1px solid ${COLORS.hairline}`, display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 },
@@ -4450,11 +4513,11 @@ const styles = {
   shipBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.moss, background: "#EEF1EA", padding: "4px 9px", borderRadius: 20 },
   pickupBadge: { fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 10.5, letterSpacing: "0.03em", color: COLORS.muted, background: COLORS.paper, padding: "4px 9px", borderRadius: 20 },
   reportLink: { marginTop: 10, alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontFamily: "'Inter', sans-serif", fontSize: 11, color: COLORS.muted, textDecoration: "underline", cursor: "pointer" },
-  ticketTitle: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 19, margin: "0 0 8px", lineHeight: 1.2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
+  ticketTitle: { fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 17, margin: "0 0 6px", lineHeight: 1.2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
   ticketDesc: { fontSize: 13.5, lineHeight: 1.5, margin: "0 0 10px", color: COLORS.ink, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
   metaLine: { fontSize: 12, color: COLORS.muted, marginBottom: 8, fontFamily: "'Inter', sans-serif" },
-  priceRow: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4 },
-  priceValue: { fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: 22, color: COLORS.lime },
+  priceRow: { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 },
+  priceValue: { fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: 24, color: COLORS.lime },
   priceLabel: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: COLORS.muted },
   shippingLine: { fontSize: 11.5, color: COLORS.ink, marginBottom: 10, fontFamily: "'Inter', sans-serif" },
   deleteLink: { marginTop: "auto", background: "none", border: "none", padding: 0, fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: COLORS.rust, textDecoration: "underline", cursor: "pointer", alignSelf: "flex-start" },
